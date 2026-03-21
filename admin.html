@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgriFlow - Admin Command Center</title>
+    
+    <!-- External Libraries -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Map & GIS Libraries -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/@mapbox/togeojson/togeojson.js"></script> <!-- KML to GeoJSON -->
+
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="admin.css">
+</head>
+<body class="bg-gray-100 text-gray-800 font-['Outfit'] overflow-hidden">
+
+    <!-- Auth Check Overlay -->
+    <div id="auth-check-overlay" class="fixed inset-0 z-[9999] bg-gray-100 flex items-center justify-center">
+        <div class="flex flex-col items-center">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mb-4"></div>
+            <p class="text-sm font-bold text-gray-500">Verifying Admin Privileges...</p>
+        </div>
+    </div>
+
+    <div class="flex h-screen overflow-hidden">
+        
+        <!-- SIDEBAR -->
+        <aside class="w-64 glass-sidebar flex flex-col z-20 transition-transform duration-300" id="sidebar">
+            <div class="p-6 flex items-center gap-2 border-b border-white/20">
+                <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center text-white shadow-lg">
+                    <i class="fas fa-leaf text-sm"></i>
+                </div>
+                <div>
+                    <span class="text-xl font-bold tracking-tight text-white leading-none">Agri<span class="text-orange-400">Flow</span></span>
+                    <span class="block text-[9px] text-gray-300 uppercase tracking-wider font-bold">Admin Console</span>
+                </div>
+            </div>
+
+            <nav class="flex-grow p-4 space-y-2 overflow-y-auto custom-scrollbar">
+                <p class="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Main</p>
+                <button onclick="switchSection('dashboard')" class="nav-item w-full text-left px-4 py-3 rounded-xl text-sm font-medium text-gray-300 hover:bg-white/10 hover:text-white transition flex items-center gap-3 active">
+                    <i class="fas fa-chart-line w-5"></i> Dashboard
+                </button>
+                <button onclick="switchSection('alerts')" class="nav-item w-full text-left px-4 py-3 rounded-xl text-sm font-medium text-gray-300 hover:bg-white/10 hover:text-white transition flex items-center gap-3">
+                    <i class="fas fa-bell w-5"></i> System Alerts <span class="bg-red-500 text-white text-[9px] px-1.5 rounded-md ml-auto" id="nav-alert-count">3</span>
+                </button>
+                
+                <p class="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider mt-6 mb-2">Data Operations</p>
+                <button onclick="switchSection('csv-upload')" class="nav-item w-full text-left px-4 py-3 rounded-xl text-sm font-medium text-gray-300 hover:bg-white/10 hover:text-white transition flex items-center gap-3">
+                    <i class="fas fa-file-csv w-5"></i> Upload CSV
+                </button>
+                <button onclick="switchSection('kml-upload')" class="nav-item w-full text-left px-4 py-3 rounded-xl text-sm font-medium text-gray-300 hover:bg-white/10 hover:text-white transition flex items-center gap-3">
+                    <i class="fas fa-map-marked-alt w-5"></i> Upload KML (GIS)
+                </button>
+                <button onclick="switchSection('manage-data')" class="nav-item w-full text-left px-4 py-3 rounded-xl text-sm font-medium text-gray-300 hover:bg-white/10 hover:text-white transition flex items-center gap-3">
+                    <i class="fas fa-database w-5"></i> Manage Records
+                </button>
+
+                <p class="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider mt-6 mb-2">Users</p>
+                <button onclick="switchSection('farmers')" class="nav-item w-full text-left px-4 py-3 rounded-xl text-sm font-medium text-gray-300 hover:bg-white/10 hover:text-white transition flex items-center gap-3">
+                    <i class="fas fa-tractor w-5"></i> Farmer Management
+                </button>
+
+                <p class="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider mt-6 mb-2">Content</p>
+                <button onclick="switchSection('page-settings')" class="nav-item w-full text-left px-4 py-3 rounded-xl text-sm font-medium text-gray-300 hover:bg-white/10 hover:text-white transition flex items-center gap-3">
+                    <i class="fas fa-desktop w-5"></i> Page Settings
+                </button>
+            </nav>
+
+            <div class="p-4 border-t border-white/20">
+                <a href="index.html" class="w-full bg-blue-600/20 text-blue-200 hover:bg-blue-600 hover:text-white px-4 py-2 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 mb-2">
+                    <i class="fas fa-external-link-alt"></i> Return to Website
+                </a>
+                <button onclick="logoutAdmin()" class="w-full bg-red-500/20 text-red-300 hover:bg-red-500 hover:text-white px-4 py-2 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </button>
+            </div>
+        </aside>
+
+        <!-- MAIN CONTENT -->
+        <main class="flex-1 flex flex-col h-full relative overflow-hidden bg-ash-gradient">
+            
+            <!-- TOP HEADER -->
+            <header class="h-16 glass-header flex items-center justify-between px-6 z-10 flex-shrink-0">
+                <h2 class="text-xl font-bold text-gray-800" id="page-title">Dashboard Overview</h2>
+                <div class="flex items-center gap-4">
+                    <span data-backend-status="" class="text-[10px] text-gray-400">Connecting...</span>
+                    <div class="flex items-center gap-2 px-3 py-1.5 bg-white/50 rounded-full border border-white">
+                        <div class="w-6 h-6 rounded-full bg-orange-100 flex items-center justify-center text-orange-600"><i class="fas fa-user-shield text-xs"></i></div>
+                        <span class="text-xs font-bold text-gray-600">Administrator</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- WORKSPACE -->
+            <div class="flex-1 overflow-y-auto p-6 custom-scrollbar relative" id="workspace">
+
+                <!-- 1. DASHBOARD OVERVIEW -->
+                <section id="sec-dashboard" class="fade-in space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                        <div class="glass-card p-6 rounded-2xl border border-white">
+                            <div class="flex justify-between items-start">
+                                <div><p class="text-xs font-bold text-gray-500 uppercase">Total Farmers</p><h3 class="text-2xl font-bold text-gray-800 mt-1">1,240</h3></div>
+                                <div class="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center"><i class="fas fa-users"></i></div>
+                            </div>
+                        </div>
+                        <div class="glass-card p-6 rounded-2xl border border-white">
+                            <div class="flex justify-between items-start">
+                                <div><p class="text-xs font-bold text-gray-500 uppercase">Data Records</p><h3 class="text-2xl font-bold text-gray-800 mt-1">85,200</h3></div>
+                                <div class="w-10 h-10 rounded-full bg-green-100 text-green-600 flex items-center justify-center"><i class="fas fa-database"></i></div>
+                            </div>
+                        </div>
+                        <div class="glass-card p-6 rounded-2xl border border-white">
+                            <div class="flex justify-between items-start">
+                                <div><p class="text-xs font-bold text-gray-500 uppercase">Pending Approvals</p><h3 class="text-2xl font-bold text-gray-800 mt-1">14</h3></div>
+                                <div class="w-10 h-10 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center"><i class="fas fa-clock"></i></div>
+                            </div>
+                        </div>
+                        <div class="glass-card p-6 rounded-2xl border border-white">
+                            <div class="flex justify-between items-start">
+                                <div><p class="text-xs font-bold text-gray-500 uppercase">System Status</p><h3 class="text-2xl font-bold text-gray-800 mt-1">Healthy</h3></div>
+                                <div class="w-10 h-10 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center"><i class="fas fa-server"></i></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Quick Actions -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="glass-card p-6 rounded-2xl">
+                            <h4 class="font-bold text-gray-800 mb-4">Recent System Logs</h4>
+                            <ul class="space-y-3 text-sm text-gray-600">
+                                <li class="flex justify-between border-b border-gray-100 pb-2"><span>User Login (Admin)</span> <span class="text-xs text-gray-400">Just now</span></li>
+                                <li class="flex justify-between border-b border-gray-100 pb-2"><span>Database Backup</span> <span class="text-xs text-gray-400">2 hours ago</span></li>
+                                <li class="flex justify-between border-b border-gray-100 pb-2"><span>New Farmer Registration</span> <span class="text-xs text-gray-400">5 hours ago</span></li>
+                            </ul>
+                        </div>
+                         <div class="glass-card p-6 rounded-2xl flex flex-col justify-center items-center text-center">
+                            <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-3 text-2xl text-gray-400"><i class="fas fa-rocket"></i></div>
+                            <h4 class="font-bold text-gray-800">Quick Deployment</h4>
+                            <p class="text-xs text-gray-500 mt-1 mb-4">Push staged changes to the live server.</p>
+                            <button class="bg-gray-800 text-white px-6 py-2 rounded-xl text-sm font-bold hover:bg-black transition">Deploy Changes</button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 2. SYSTEM ALERTS (NEW) -->
+                <section id="sec-alerts" class="hidden fade-in space-y-6">
+                    <div class="glass-card p-6 rounded-2xl border border-white">
+                        <div class="flex justify-between items-center mb-6">
+                            <h3 class="text-xl font-bold text-gray-800">System Notifications</h3>
+                            <button class="text-xs font-bold text-blue-600 hover:underline">Mark all as read</button>
+                        </div>
+                        <div class="space-y-4" id="alerts-container">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 3. CSV UPLOAD SYSTEM (UPGRADED) -->
+                <section id="sec-csv-upload" class="hidden fade-in space-y-6">
+                    <div class="glass-card p-8 rounded-2xl border border-white max-w-3xl mx-auto">
+                        <h3 class="text-xl font-bold text-gray-800 mb-2">Advanced Batch Data Import</h3>
+                        <p class="text-sm text-gray-500 mb-6">Upload CSV files to bulk update records. System auto-detects schema and validates rows.</p>
+                        
+                        <!-- Auto-Mapping Warnings -->
+                        <div id="csv-warning-panel" class="hidden bg-red-50 border border-red-200 p-4 rounded-xl mb-6">
+                            <h5 class="text-sm font-bold text-red-700 mb-1"><i class="fas fa-exclamation-triangle mr-2"></i>Column Mismatch Detected</h5>
+                            <p class="text-xs text-red-600" id="csv-warning-text"></p>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                            <div class="col-span-1">
+                                <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Dataset Category</label>
+                                <select id="csv-type-select" class="w-full p-3 rounded-xl bg-gray-50 border border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm">
+                                    <option value="vegetables">Vegetable Prices</option>
+                                    <option value="fruits">Fruit Stocks</option>
+                                    <option value="farmers">Farmer Registry</option>
+                                    <option value="weather">Weather Data</option>
+                                    <option value="provinces">Provincial Stats</option>
+                                </select>
+                            </div>
+                            <div class="col-span-2">
+                                <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Select CSV File(s)</label>
+                                <input type="file" id="csv-file-input" accept=".csv" multiple class="w-full p-2.5 rounded-xl bg-white border border-gray-200 text-sm file:mr-4 file:py-1 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-orange-50 file:text-orange-700 hover:file:bg-orange-100"/>
+                            </div>
+                        </div>
+
+                        <div id="csv-drop-zone" class="border-2 border-dashed border-gray-300 rounded-2xl p-8 text-center bg-gray-50 mb-6 transition hover:bg-orange-50 hover:border-orange-300">
+                            <i class="fas fa-cloud-upload-alt text-4xl text-gray-300 mb-3"></i>
+                            <p class="text-sm text-gray-500">Drag and drop CSV files here or use the selector.</p>
+                        </div>
+
+                        <button onclick="processCSV()" class="w-full bg-gradient-to-r from-orange-500 to-red-500 text-white font-bold py-3 rounded-xl shadow-lg hover:shadow-orange-500/30 transition transform hover:-translate-y-1">
+                            Analyze & Preview Data
+                        </button>
+                    </div>
+
+                    <div id="csv-preview-container" class="hidden glass-card p-6 rounded-2xl border border-white">
+                        <div class="flex justify-between items-center mb-4">
+                            <div>
+                                <h4 class="font-bold text-gray-800">Data Validation Preview</h4>
+                                <p class="text-xs text-gray-500">Rows in red contain validation errors.</p>
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="clearCSV()" class="text-xs font-bold text-gray-500 hover:text-red-500 px-3 py-1">Discard</button>
+                                <button onclick="saveCSVToDb()" class="bg-green-500 text-white px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-green-600 transition">Confirm Import</button>
+                            </div>
+                        </div>
+                        <div class="overflow-x-auto rounded-xl border border-gray-200 max-h-96 custom-scrollbar">
+                            <table class="w-full text-sm text-left" id="csv-preview-table">
+                                <!-- JS Populated -->
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 4. KML / GIS UPLOAD (NEW) -->
+                <section id="sec-kml-upload" class="hidden fade-in space-y-6">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-140px)]">
+                        <!-- Controls -->
+                        <div class="lg:col-span-1 glass-card p-6 rounded-2xl border border-white flex flex-col h-full">
+                            <h3 class="text-xl font-bold text-gray-800 mb-4">GIS Data Import</h3>
+                            <p class="text-sm text-gray-500 mb-6">Import .kml files to update boundary layers for Provinces, Districts, or DSDs.</p>
+                            
+                            <div class="space-y-4 mb-6">
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Boundary Type</label>
+                                    <select id="kml-type-select" class="w-full p-3 rounded-xl bg-gray-50 border border-gray-200 focus:outline-none focus:ring-2 focus:ring-green-500 text-sm">
+                                        <option value="province">Provinces</option>
+                                        <option value="district">Districts</option>
+                                        <option value="dsd">DSD Divisions</option>
+                                        <option value="soil">Soil Zones</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Select KML File</label>
+                                    <input type="file" id="kml-file-input" accept=".kml,.xml" class="w-full p-2.5 rounded-xl bg-white border border-gray-200 text-sm file:mr-4 file:py-1 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100"/>
+                                </div>
+                            </div>
+                            
+                            <button onclick="handleKMLUpload()" class="w-full bg-green-600 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-green-700 transition mb-4">
+                                Parse & Preview on Map
+                            </button>
+                            
+                            <div id="kml-stats" class="mt-auto hidden">
+                                <h4 class="font-bold text-gray-800 mb-2">File Statistics</h4>
+                                <div class="bg-gray-50 rounded-xl p-3 text-xs space-y-2">
+                                    <div class="flex justify-between"><span>Polygons:</span> <span class="font-bold" id="kml-poly-count">0</span></div>
+                                    <div class="flex justify-between"><span>Placemarks:</span> <span class="font-bold" id="kml-place-count">0</span></div>
+                                    <div class="flex justify-between"><span>Total Size:</span> <span class="font-bold" id="kml-size">0 KB</span></div>
+                                </div>
+                                <button onclick="saveKMLToDatabase()" class="w-full mt-4 bg-gray-800 text-white font-bold py-2 rounded-xl text-sm hover:bg-black transition">Confirm Database Update</button>
+                            </div>
+                        </div>
+
+                        <!-- Map Preview -->
+                        <div class="lg:col-span-2 glass-card p-2 rounded-2xl border border-white h-full flex flex-col">
+                            <div id="kml-map" class="w-full flex-grow rounded-xl bg-gray-200 z-0"></div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 5. FARMER MANAGEMENT (NEW) -->
+                <section id="sec-farmers" class="hidden fade-in space-y-6">
+                    <!-- Analytics Cards -->
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                        <div class="glass-card p-4 rounded-2xl border border-white">
+                            <p class="text-[10px] font-bold text-gray-500 uppercase">Total Farmers</p>
+                            <h3 class="text-2xl font-bold text-gray-800">1,240</h3>
+                            <p class="text-xs text-green-600 font-bold mt-1"><i class="fas fa-arrow-up"></i> 12 this week</p>
+                        </div>
+                        <div class="glass-card p-4 rounded-2xl border border-white">
+                            <p class="text-[10px] font-bold text-gray-500 uppercase">Active Rate</p>
+                            <h3 class="text-2xl font-bold text-blue-600">88%</h3>
+                        </div>
+                        <div class="glass-card p-4 rounded-2xl border border-white">
+                            <p class="text-[10px] font-bold text-gray-500 uppercase">Pending Review</p>
+                            <h3 class="text-2xl font-bold text-orange-500">45</h3>
+                        </div>
+                        <div class="glass-card p-4 rounded-2xl border border-white">
+                            <p class="text-[10px] font-bold text-gray-500 uppercase">Suspended</p>
+                            <h3 class="text-2xl font-bold text-red-500">12</h3>
+                        </div>
+                    </div>
+
+                    <!-- Main Farmer Content -->
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <!-- Left: List -->
+                        <div class="lg:col-span-2 glass-card p-6 rounded-2xl border border-white">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="text-lg font-bold text-gray-800">Farmer Directory</h3>
+                                <div class="flex gap-2">
+                                    <input type="text" placeholder="Search NIC/Name..." id="farmer-search" class="text-xs p-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-orange-500 w-48">
+                                    <select class="text-xs p-2 rounded-lg border border-gray-200 bg-white" onchange="filterFarmers(this.value)">
+                                        <option value="all">All Status</option>
+                                        <option value="active">Active</option>
+                                        <option value="pending">Pending</option>
+                                        <option value="suspended">Suspended</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="overflow-x-auto max-h-[500px] custom-scrollbar">
+                                <table class="w-full text-left text-sm" id="farmer-table">
+                                    <thead class="bg-gray-50 text-gray-500 font-bold uppercase text-xs sticky top-0">
+                                        <tr>
+                                            <th class="px-4 py-3">Farmer</th>
+                                            <th class="px-4 py-3">Location</th>
+                                            <th class="px-4 py-3">Status</th>
+                                            <th class="px-4 py-3 text-right">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-gray-100" id="farmer-tbody">
+                                        <!-- Populated via JS -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Right: Analytics & Logs -->
+                        <div class="space-y-6">
+                            <div class="glass-card p-6 rounded-2xl border border-white">
+                                <h4 class="text-sm font-bold text-gray-800 mb-4">Provincial Distribution</h4>
+                                <div class="h-48 w-full"><canvas id="farmerChart"></canvas></div>
+                            </div>
+
+                            <div class="glass-card p-6 rounded-2xl border border-white flex-grow">
+                                <h4 class="text-sm font-bold text-gray-800 mb-4">Login Activity Log</h4>
+                                <div class="space-y-3 overflow-y-auto max-h-64 custom-scrollbar" id="login-logs">
+                                    <!-- Populated via JS -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 6. MANAGE DATA (ENHANCED FORMS) -->
+                <section id="sec-manage-data" class="hidden fade-in space-y-6">
+                    <div class="flex flex-col md:flex-row justify-between items-center gap-4 bg-white/60 p-4 rounded-2xl border border-white backdrop-blur-md">
+                        <div class="flex items-center gap-4 w-full md:w-auto">
+                            <select id="dataset-select" onchange="loadDataset(this.value)" class="p-2.5 rounded-xl bg-white border border-gray-200 text-sm font-bold text-gray-700 focus:ring-2 focus:ring-blue-500">
+                                <option value="vegetables">Vegetables</option>
+                                <option value="fruits">Fruits</option>
+                                <option value="provinces">Provinces</option>
+                                <option value="districts">Districts</option>
+                                <option value="weather">Weather Data</option>
+                            </select>
+                            <div class="relative w-full md:w-64">
+                                <input type="text" placeholder="Search records..." class="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <i class="fas fa-search absolute left-3 top-3 text-gray-400 text-xs"></i>
+                            </div>
+                        </div>
+                        <button onclick="openRecordModal('add')" class="bg-gray-800 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg hover:bg-black transition flex items-center gap-2">
+                            <i class="fas fa-plus"></i> Add New Record
+                        </button>
+                    </div>
+
+                    <div class="glass-card rounded-2xl border border-white overflow-hidden shadow-sm">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-sm" id="crud-table">
+                                <thead class="bg-gray-50 text-gray-500 font-bold uppercase text-xs border-b border-gray-200">
+                                    <!-- Dynamic Headers -->
+                                </thead>
+                                <tbody class="divide-y divide-gray-100 bg-white/50" id="crud-tbody">
+                                    <!-- Dynamic Rows -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="p-4 border-t border-gray-100 flex justify-between items-center text-xs text-gray-500">
+                            <span id="record-count">Showing 0 records</span>
+                            <div class="flex gap-2">
+                                <button class="px-3 py-1 rounded bg-white border hover:bg-gray-50">Prev</button>
+                                <button class="px-3 py-1 rounded bg-white border hover:bg-gray-50">Next</button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 7. PAGE SETTINGS SECTION (EXISTING) -->
+                <section id="sec-page-settings" class="hidden fade-in space-y-6">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6" id="pages-grid">
+                        <!-- Items populated via JS -->
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- CRUD MODAL (AUTO GENERATED FORMS) -->
+    <div id="crud-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+        <div class="bg-white rounded-2xl w-full max-w-lg shadow-2xl transform transition-all scale-95 opacity-0 flex flex-col max-h-[90vh]" id="crud-modal-content">
+            <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center flex-shrink-0">
+                <h3 class="font-bold text-gray-800 text-lg" id="modal-title">Edit Record</h3>
+                <button onclick="closeRecordModal()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-6 space-y-4 overflow-y-auto custom-scrollbar" id="crud-form-container">
+                <!-- Inputs injected via JS -->
+            </div>
+            <div class="px-6 py-4 bg-gray-50 rounded-b-2xl flex justify-end gap-3 flex-shrink-0">
+                <button onclick="closeRecordModal()" class="text-sm font-bold text-gray-500 hover:text-gray-700 px-4 py-2">Cancel</button>
+                <button onclick="saveRecord()" class="bg-blue-600 text-white text-sm font-bold px-6 py-2 rounded-xl hover:bg-blue-700 shadow-md">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- AgriFlow shared data service + API client -->
+    <script src="agri-db.js"></script>
+    <script src="api-client.js"></script>
+    <script src="admin-patch.js"></script>
+    <script src="admin.js"></script>
+</body>
+</html>

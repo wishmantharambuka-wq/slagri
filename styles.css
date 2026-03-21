@@ -1,0 +1,88 @@
+/* --- DESIGN SYSTEM --- */
+:root {
+    --ash-bg: #F3F4F6;
+    --glass-base: rgba(255, 255, 255, 0.65);
+    --glass-border: rgba(255, 255, 255, 0.4);
+    --glass-highlight: rgba(255, 255, 255, 0.8);
+    --primary-orange: #F97316;
+    --success-green: #10B981;
+    --info-blue: #3B82F6;
+}
+
+body {
+    background-color: var(--ash-bg);
+    background-image: 
+        radial-gradient(at 0% 0%, rgba(16, 185, 129, 0.1) 0px, transparent 50%),
+        radial-gradient(at 100% 0%, rgba(59, 130, 246, 0.1) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(249, 115, 22, 0.05) 0px, transparent 50%),
+        radial-gradient(at 0% 100%, rgba(16, 185, 129, 0.05) 0px, transparent 50%);
+    background-attachment: fixed;
+    background-size: cover;
+    font-family: 'Outfit', sans-serif;
+    color: #1F2937;
+}
+
+/* --- GLASSMORPHISM --- */
+.glass {
+    background: var(--glass-base);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--glass-border);
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05);
+}
+
+.glass-blue {
+    background: rgba(59, 130, 246, 0.1);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+}
+
+.glass-nav {
+    background: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.03);
+}
+
+.glass-card {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 40px 0 rgba(31, 38, 135, 0.15);
+    background: var(--glass-highlight);
+    border-color: rgba(255,255,255,0.9);
+}
+
+.fade-in { animation: fadeIn 0.5s ease-out forwards; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+.nav-link { position: relative; padding: 0.5rem 1rem; color: #4B5563; font-weight: 500; border-radius: 9999px; transition: all 0.3s ease; }
+.nav-link:hover { background: rgba(255,255,255,0.4); color: var(--primary-orange); }
+.nav-link.active { background: white; color: var(--primary-orange); box-shadow: 0 4px 15px rgba(249, 115, 22, 0.15); font-weight: 600; }
+
+#map-container { height: 100%; width: 100%; z-index: 1; border-radius: 1rem; }
+.leaflet-popup-content-wrapper { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(8px); border-radius: 12px; }
+
+.custom-scrollbar::-webkit-scrollbar { width: 5px; height: 5px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+
+.ticker-wrap { width: 100%; overflow: hidden; background: rgba(255,255,255,0.4); padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.3); backdrop-filter: blur(10px); }
+.ticker { display: inline-block; white-space: nowrap; padding-right: 100%; box-sizing: content-box; animation: ticker 40s linear infinite; }
+.ticker__item { display: inline-block; padding: 0 2rem; font-size: 0.85rem; font-weight: 500; color: #4B5563; }
+@keyframes ticker { 0% { transform: translate3d(0, 0, 0); } 100% { transform: translate3d(-100%, 0, 0); } }
+
+.progress-bar { height: 6px; border-radius: 3px; background: rgba(0,0,0,0.05); overflow: hidden; }
+.progress-fill { height: 100%; border-radius: 3px; transition: width 0.8s ease; }
+.card-selected { border: 2px solid #F97316 !important; background: rgba(255,255,255,0.85); }
+
+select option { background: #fff; color: #333; }
+.weather-tab { cursor: pointer; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; transition: all 0.3s; border: 1px solid transparent; }
+.weather-tab.active { background: white; color: #3B82F6; box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15); border-color: #BFDBFE; }
+.weather-tab:not(.active) { color: #6B7280; }
+.weather-tab:not(.active):hover { background-color: rgba(255, 255, 255, 0.4); }

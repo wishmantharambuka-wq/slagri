@@ -1,0 +1,22 @@
+# ── Netlify ───────────────────────────────────────────────────────────────────
+.netlify/
+
+# ── Node / Backend ────────────────────────────────────────────────────────────
+node_modules/
+agribackendp/agri-backend/node_modules/
+npm-debug.log*
+yarn-error.log*
+
+# ── Environment secrets ───────────────────────────────────────────────────────
+.env
+.env.local
+.env.production
+agribackendp/agri-backend/.env
+
+# ── OS / Editor noise ─────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/settings.json
+*.swp
+*.swo

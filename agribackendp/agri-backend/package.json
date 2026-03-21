@@ -1,0 +1,36 @@
+{
+  "name": "agriflow-backend",
+  "version": "1.0.0",
+  "description": "AgriFlow API — Agricultural intelligence platform backend for Sri Lanka",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js || node server.js",
+    "test": "node test-api.js",
+    "install:all": "npm install && npm install --save-optional morgan helmet express-rate-limit && npm install --save-dev nodemon"
+  },
+  "keywords": ["agriflow", "agriculture", "sri-lanka", "api"],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^9.0.1",
+    "multer": "^2.0.2"
+  },
+  "optionalDependencies": {
+    "express-rate-limit": "^7.4.1",
+    "helmet": "^8.0.0",
+    "morgan": "^1.10.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

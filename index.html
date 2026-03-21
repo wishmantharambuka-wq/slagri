@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgriFlow - Dashboard</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- AgriFlow shared data service + API client -->
+    <script src="agri-db.js"></script>
+    <script src="api-client.js"></script>
+    <script src="scripts-fix.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        :root { --ash-bg: #F3F4F6; --glass-base: rgba(255, 255, 255, 0.85); --glass-border: rgba(255, 255, 255, 0.4); --glass-highlight: rgba(255, 255, 255, 0.9); --primary-orange: #F97316; }
+        body { background-color: var(--ash-bg); background-image: radial-gradient(at 0% 0%, rgba(16, 185, 129, 0.1) 0px, transparent 50%), radial-gradient(at 100% 0%, rgba(59, 130, 246, 0.1) 0px, transparent 50%), radial-gradient(at 100% 100%, rgba(249, 115, 22, 0.05) 0px, transparent 50%); background-attachment: fixed; background-size: cover; font-family: 'Outfit', sans-serif; color: #1F2937; }
+        
+        .glass { background: var(--glass-base); backdrop-filter: blur(12px); border: 1px solid var(--glass-border); box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05); }
+        .glass-blue { background: rgba(59, 130, 246, 0.15); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.3); box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1); }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+        }
+        .glass-transparent { background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(8px); border: 1px solid rgba(255, 255, 255, 0.3); box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05); }
+
+        .glass-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .glass-card:hover { transform: translateY(-5px); box-shadow: 0 12px 40px 0 rgba(31, 38, 135, 0.1); background: var(--glass-highlight); border-color: rgba(255,255,255,0.8); }
+        
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; height: 5px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        
+        .ticker-wrap { width: 100%; overflow: hidden; background: rgba(255,255,255,0.6); padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.4); backdrop-filter: blur(8px); }
+        .ticker { display: inline-block; white-space: nowrap; padding-right: 100%; box-sizing: content-box; animation: ticker 40s linear infinite; }
+        .ticker__item { display: inline-block; padding: 0 2rem; font-size: 0.85rem; font-weight: 500; color: #4B5563; }
+        @keyframes ticker { 0% { transform: translate3d(0, 0, 0); } 100% { transform: translate3d(-100%, 0, 0); } }
+        
+        .weather-tab { padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s; color: #64748b; }
+        .weather-tab.active { background-color: rgba(255, 255, 255, 0.5); color: #0f172a; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+        
+        .fade-in { animation: fadeIn 0.5s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Custom Select for Transparent Look */
+        select option { background: white; color: #333; }
+
+        /* World Map Dot Animation */
+        @keyframes pulse-dot {
+            0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(255, 255, 255, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
+        }
+        .demand-dot {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            border: 2px solid white;
+            animation: pulse-dot 2s infinite;
+            cursor: pointer;
+        }
+        .demand-dot:hover::after {
+            content: attr(data-country);
+            position: absolute;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            white-space: nowrap;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col antialiased h-screen overflow-hidden text-gray-700">
+
+    <nav class="glass-panel sticky top-0 z-50 px-6 py-3 shadow-sm flex-shrink-0">
+        <div class="max-w-full mx-auto flex justify-between items-center">
+            <a href="index.html" class="flex items-center gap-2 cursor-pointer group">
+                <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-green-500 to-green-700 flex items-center justify-center text-white shadow-lg transform group-hover:rotate-12 transition">
+                    <i class="fas fa-seedling"></i>
+                </div>
+                <div class="flex flex-col">
+                    <span class="text-lg font-extrabold tracking-tight text-gray-900 leading-none">Agri<span class="text-orange-500">Flow</span></span>
+                    <span class="text-[9px] text-gray-500 font-bold tracking-wider uppercase">National Intelligence</span>
+                    <span data-backend-status="" class="text-[9px] text-gray-400 mt-0.5">Connecting...</span>
+                </div>
+            </a>
+            
+            <div class="hidden md:flex bg-gray-100/50 p-1 rounded-full backdrop-blur-md border border-white/50">
+                <a href="index.html" class="nav-link px-4 py-1.5 rounded-full text-xs font-bold bg-white text-orange-600 shadow-sm">Dashboard</a>
+                <a href="map.html" class="nav-link px-4 py-1.5 rounded-full text-xs font-medium text-gray-500 hover:bg-white hover:text-orange-500 transition">Map & Intelligence</a>
+                <a href="marketplace.html" class="nav-link px-4 py-1.5 rounded-full text-xs font-medium text-gray-500 hover:bg-white hover:text-orange-500 transition">Marketplace</a>
+                <a href="farmer.html" class="nav-link px-4 py-1.5 rounded-full text-xs font-medium text-gray-500 hover:bg-white hover:text-orange-500 transition">Farmer Zone</a>
+            </div>
+
+            <div class="flex items-center gap-3">
+                <div class="relative group">
+                    <button class="w-9 h-9 rounded-full bg-red-50 text-red-500 flex items-center justify-center relative hover:bg-red-100 transition">
+                        <i class="fas fa-bell"></i>
+                        <span class="absolute top-0 right-0 w-3 h-3 bg-red-600 border-2 border-white rounded-full animate-pulse"></span>
+                    </button>
+                    <!-- Alerts Dropdown -->
+                    <div class="hidden group-hover:block absolute right-0 top-full mt-2 w-72 bg-white/95 backdrop-blur-xl rounded-xl shadow-2xl border border-gray-100 p-3 z-50">
+                        <h4 class="text-[10px] font-bold text-gray-400 uppercase mb-2">Active Alerts</h4>
+                        <div id="nav-alerts-list" class="space-y-2 max-h-60 overflow-y-auto custom-scrollbar"></div>
+                    </div>
+                </div>
+                <button id="auth-btn" onclick="openLoginModal()" class="w-9 h-9 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center hover:bg-gray-200 transition">
+                    <i class="fas fa-user"></i>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <main class="flex-grow container mx-auto px-4 py-6 max-w-7xl overflow-hidden relative">
+
+        <!-- DASHBOARD CONTENT -->
+        <div id="home" class="fade-in block h-full overflow-y-auto pb-20 custom-scrollbar">
+            <!-- Category Browser -->
+            <div class="flex gap-4 overflow-x-auto pb-4 mb-2 custom-scrollbar">
+                <button onclick="showCategoryDetails('Paddy')" class="glass px-6 py-4 rounded-2xl flex flex-col items-center min-w-[110px] hover:bg-white transition group border border-white/60 cursor-pointer"><i class="fas fa-seedling text-green-500 text-2xl mb-2 group-hover:scale-110 transition"></i><span class="text-xs font-bold text-gray-600">Paddy</span></button>
+                <button onclick="showCategoryDetails('Vegetables')" class="glass px-6 py-4 rounded-2xl flex flex-col items-center min-w-[110px] hover:bg-white transition group border border-white/60 cursor-pointer"><i class="fas fa-carrot text-orange-500 text-2xl mb-2 group-hover:scale-110 transition"></i><span class="text-xs font-bold text-gray-600">Vegetables</span></button>
+                <button onclick="showCategoryDetails('Fruits')" class="glass px-6 py-4 rounded-2xl flex flex-col items-center min-w-[110px] hover:bg-white transition group border border-white/60 cursor-pointer"><i class="fas fa-apple-alt text-red-500 text-2xl mb-2 group-hover:scale-110 transition"></i><span class="text-xs font-bold text-gray-600">Fruits</span></button>
+                <button onclick="showCategoryDetails('Tea')" class="glass px-6 py-4 rounded-2xl flex flex-col items-center min-w-[110px] hover:bg-white transition group border border-white/60 cursor-pointer"><i class="fas fa-leaf text-green-700 text-2xl mb-2 group-hover:scale-110 transition"></i><span class="text-xs font-bold text-gray-600">Tea</span></button>
+                <button onclick="showCategoryDetails('Spices')" class="glass px-6 py-4 rounded-2xl flex flex-col items-center min-w-[110px] hover:bg-white transition group border border-white/60 cursor-pointer"><i class="fas fa-mortar-pestle text-yellow-600 text-2xl mb-2 group-hover:scale-110 transition"></i><span class="text-xs font-bold text-gray-600">Spices</span></button>
+            </div>
+
+            <!-- KPIs -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                <!-- National Health -->
+                <div onclick="openNationalOverview()" class="glass glass-card rounded-2xl p-6 md:col-span-2 flex items-center justify-between bg-gradient-to-r from-white/80 to-green-50/50 border border-white cursor-pointer transition transform hover:scale-[1.01]">
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-800">National Food Security</h2>
+                        <p class="text-sm text-gray-500 mt-1">Status: <span class="text-green-700 font-bold bg-green-100/80 px-2 py-0.5 rounded text-xs border border-green-200">STABLE</span></p>
+                        <div class="mt-6 flex gap-8">
+                            <div><p class="text-[10px] text-gray-400 uppercase tracking-wide font-bold">Cultivated Area</p><p class="text-2xl font-bold text-gray-800">450k <span class="text-sm font-normal text-gray-500">Ha</span></p></div>
+                            <div><p class="text-[10px] text-gray-400 uppercase tracking-wide font-bold">Reporting DSDs</p><p class="text-2xl font-bold text-gray-800">312 <span class="text-sm font-normal text-gray-400">/ 331</span></p></div>
+                        </div>
+                        <p class="text-[10px] text-blue-500 font-bold mt-2 flex items-center gap-1">Click for Island-Wide View <i class="fas fa-arrow-right"></i></p>
+                    </div>
+                    <div class="relative w-28 h-28 flex items-center justify-center">
+                        <svg class="w-full h-full transform -rotate-90">
+                            <circle cx="56" cy="56" r="42" stroke="#E5E7EB" stroke-width="8" fill="transparent" />
+                            <circle cx="56" cy="56" r="42" stroke="#10B981" stroke-width="8" fill="transparent" stroke-dasharray="264" stroke-dashoffset="47" stroke-linecap="round" />
+                        </svg>
+                        <div class="absolute inset-0 flex flex-col items-center justify-center"><span class="text-2xl font-bold text-green-600">82%</span><span class="text-[10px] text-gray-400">Target</span></div>
+                    </div>
+                </div>
+
+                <!-- AI Cards -->
+                <div class="glass glass-card rounded-2xl p-6 relative overflow-hidden group cursor-pointer border border-white" onclick="location.href='map.html'">
+                    <div class="absolute right-[-20px] top-[-20px] w-24 h-24 bg-red-500/10 rounded-full blur-xl transition group-hover:bg-red-500/20"></div>
+                    <div class="flex items-center gap-2 mb-3"><span class="bg-red-100 text-red-600 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider">AI Forecast</span></div>
+                    <h3 class="text-xl font-bold text-gray-800">Carrot Shortage</h3>
+                    <p class="text-sm text-gray-500 mt-1">Expected in <span class="font-bold text-red-500">3 Weeks</span>.</p>
+                    <div class="mt-4 flex items-center text-xs text-blue-500 font-bold group-hover:translate-x-1 transition">View Details <i class="fas fa-arrow-right ml-1"></i></div>
+                </div>
+
+                 <div class="glass glass-card rounded-2xl p-6 relative overflow-hidden group border border-white cursor-pointer" onclick="openExportMarket()">
+                    <div class="absolute right-[-20px] top-[-20px] w-24 h-24 bg-blue-500/10 rounded-full blur-xl transition group-hover:bg-blue-500/20"></div>
+                     <div class="flex items-center gap-2 mb-3"><span class="bg-blue-100 text-blue-600 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider">Export</span></div>
+                    <h3 class="text-xl font-bold text-gray-800">Pineapple</h3>
+                    <p class="text-sm text-gray-500 mt-1">High demand in Dubai market.</p>
+                    <div class="mt-4 flex items-center text-xs text-blue-500 font-bold group-hover:translate-x-1 transition">View Prices <i class="fas fa-arrow-right ml-1"></i></div>
+                </div>
+            </div>
+
+            <!-- WEATHER & CHART SECTION - ADJUSTED GRID COLS -->
+            <div class="grid grid-cols-1 lg:grid-cols-5 gap-6 mb-6">
+                 
+                 <!-- Agri-Weather (Takes 3 of 5 columns = 60%) -->
+                 <div class="lg:col-span-3 glass-blue rounded-2xl p-6 flex flex-col justify-between relative overflow-hidden text-gray-800 border border-white/40">
+                    <div class="absolute top-[-50px] right-[-50px] w-48 h-48 bg-blue-400/20 rounded-full blur-3xl"></div>
+                    <div class="absolute bottom-[-20px] left-[-20px] w-32 h-32 bg-cyan-300/10 rounded-full blur-3xl"></div>
+                    <div class="relative z-10 h-full flex flex-col">
+                        <div class="flex justify-between items-start mb-4">
+                            <div><h3 class="font-bold text-xl text-gray-800">Agri-Weather Intelligence</h3><p class="text-xs text-gray-600 flex items-center gap-1 font-medium mt-1"><i class="fas fa-map-marker-alt text-red-500"></i> Nuwara Eliya, Central Province</p></div>
+                            <div class="flex gap-1 bg-white/30 p-1 rounded-full backdrop-blur-sm">
+                                <button onclick="switchWeatherTab('today')" id="tab-today" class="weather-tab active">Today</button>
+                                <button onclick="switchWeatherTab('tomorrow')" id="tab-tomorrow" class="weather-tab">Tomorrow</button>
+                                <button onclick="switchWeatherTab('10days')" id="tab-10days" class="weather-tab">10 Days</button>
+                            </div>
+                        </div>
+                        <div id="view-today" class="flex-grow flex flex-col animate-fade-in">
+                            <div class="flex items-center justify-between mb-6">
+                                <div class="flex items-center gap-4">
+                                    <div class="bg-gradient-to-br from-orange-400 to-yellow-300 w-16 h-16 rounded-full flex items-center justify-center shadow-lg text-white text-3xl"><i class="fas fa-sun"></i></div>
+                                    <div><div class="flex items-start"><span class="text-6xl font-bold text-gray-800 tracking-tighter" id="weather-temp">--°</span><span class="text-xl font-medium text-gray-500 mt-2">C</span></div><p class="text-sm font-bold text-gray-600" id="weather-desc">Clear Sky</p></div>
+                                </div>
+                                <div class="grid grid-cols-2 gap-x-8 gap-y-2 text-right">
+                                    <div><p class="text-[10px] text-gray-500 uppercase font-bold">Humidity</p><p class="text-lg font-bold text-blue-600" id="weather-humidity">--%</p></div>
+                                    <div><p class="text-[10px] text-gray-500 uppercase font-bold">Wind</p><p class="text-lg font-bold text-gray-600" id="weather-wind">-- km/h</p></div>
+                                    <div><p class="text-[10px] text-gray-500 uppercase font-bold">Precipitation</p><p class="text-lg font-bold text-purple-600" id="weather-rain">--%</p></div>
+                                    <div><p class="text-[10px] text-gray-500 uppercase font-bold">Soil Moisture</p><p class="text-lg font-bold text-green-600">Optimal</p></div>
+                                </div>
+                            </div>
+                            <div class="flex-grow relative bg-white/20 rounded-xl p-2 border border-white/30 mt-auto min-h-[160px]">
+                                <div class="absolute top-2 left-4 text-[10px] font-bold text-gray-500 uppercase">Temperature Trend (24H)</div>
+                                <canvas id="weatherGraph" class="w-full h-full"></canvas>
+                            </div>
+                        </div>
+                        <div id="view-forecast" class="hidden flex-grow overflow-y-auto custom-scrollbar pt-2"><div class="space-y-2" id="forecast-list-full"></div></div>
+                    </div>
+                </div>
+
+                <!-- Supply Forecast Chart (Takes 2 of 5 columns = 40%) -->
+                <div class="lg:col-span-2 glass rounded-2xl p-5 border border-white relative overflow-hidden flex flex-col">
+                    <div class="flex justify-between items-center mb-4 z-10 relative">
+                         <div><h3 class="text-sm font-bold text-gray-800">Supply Forecast</h3><p class="text-[10px] text-gray-400">Next 5 Months</p></div>
+                         <div class="flex flex-col gap-1 items-end">
+                             <div class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-blue-500 shadow-sm"></span><span class="text-[9px] text-gray-500 font-medium">Demand</span></div>
+                             <div class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-green-500 shadow-sm"></span><span class="text-[9px] text-gray-500 font-medium">Supply</span></div>
+                         </div>
+                    </div>
+                    <div class="flex-grow w-full relative z-10 min-h-[180px]"><canvas id="nationalChart"></canvas></div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- AUTH MODAL -->
+    <div id="auth-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+        <div class="glass bg-white/95 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden transform transition-all scale-95 opacity-0" id="auth-modal-content">
+            <div class="bg-gray-50 px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+                <h3 class="font-bold text-gray-800 text-lg" id="modal-title">Login to AgriFlow</h3>
+                <button onclick="closeLoginModal()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times"></i></button>
+            </div>
+            <div id="step-role" class="p-6">
+                <p class="text-center text-gray-500 mb-6 text-sm">Please select your account type.</p>
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div onclick="selectRole('farmer')" class="cursor-pointer border-2 border-transparent hover:border-orange-500 bg-orange-50 rounded-xl p-6 text-center transition group"><div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition"><i class="fas fa-tractor text-2xl text-orange-500"></i></div><h4 class="font-bold text-gray-800">Farmer</h4><p class="text-[10px] text-gray-500 mt-1">Full Access</p></div>
+                    <div onclick="selectRole('customer')" class="cursor-pointer border-2 border-transparent hover:border-blue-500 bg-blue-50 rounded-xl p-6 text-center transition group"><div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition"><i class="fas fa-shopping-basket text-2xl text-blue-500"></i></div><h4 class="font-bold text-gray-800">Customer</h4><p class="text-[10px] text-gray-500 mt-1">View & Buy</p></div>
+                </div>
+                <div onclick="selectRole('admin')" class="cursor-pointer border border-gray-200 hover:border-red-400 bg-gray-50 rounded-xl p-3 text-center transition flex items-center justify-center gap-3"><i class="fas fa-user-shield text-gray-500"></i> <span class="text-sm font-bold text-gray-600">Official / Admin Login</span></div>
+            </div>
+            <div id="step-farmer" class="p-6 hidden"><div class="space-y-4"><div><label class="text-xs font-bold text-gray-500 uppercase">Full Name</label><input type="text" id="f-name" class="w-full p-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500" placeholder="e.g. Kamal Perera"></div><div><label class="text-xs font-bold text-gray-500 uppercase">NIC Number</label><input type="text" class="w-full p-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500"></div><button onclick="handleLogin('farmer')" class="w-full bg-orange-500 text-white font-bold py-3 rounded-lg hover:bg-orange-600 transition shadow-lg">Register & Login</button><button onclick="resetModal()" class="w-full text-xs text-gray-400 hover:text-gray-600 mt-2">Back</button></div></div>
+            <div id="step-customer" class="p-6 hidden"><div class="space-y-3"><div><label class="text-xs font-bold text-gray-500 uppercase">Full Name</label><input type="text" id="c-name" class="w-full p-2.5 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"></div><div><label class="text-xs font-bold text-gray-500 uppercase">Province</label><select id="c-province" class="w-full p-2.5 rounded-lg border border-gray-200" onchange="populateDistricts()"></select></div><button onclick="handleLogin('customer')" class="w-full bg-blue-500 text-white font-bold py-3 rounded-lg hover:bg-blue-600 transition shadow-lg mt-2">Register & Login</button><button onclick="resetModal()" class="w-full text-xs text-gray-400 hover:text-gray-600 mt-2">Back</button></div></div>
+            <div id="step-admin" class="p-6 hidden"><div class="bg-red-50 border border-red-100 p-3 rounded-lg mb-4 text-xs text-red-600 flex items-center gap-2"><i class="fas fa-lock"></i> Restricted Access Area</div><div class="space-y-4"><div><label class="text-xs font-bold text-gray-500 uppercase">Username</label><input type="text" id="a-user" class="w-full p-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-red-500"></div><div><label class="text-xs font-bold text-gray-500 uppercase">Password</label><input type="password" id="a-pass" class="w-full p-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-red-500"></div><button onclick="handleLogin('admin')" class="w-full bg-gray-800 text-white font-bold py-3 rounded-lg hover:bg-gray-900 transition shadow-lg">Authenticate</button><button onclick="resetModal()" class="w-full text-xs text-gray-400 hover:text-gray-600 mt-2">Back</button></div></div>
+        </div>
+    </div>
+
+    <!-- Category Modal -->
+    <div id="category-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+        <div class="glass bg-white/95 rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden h-[80vh] flex flex-col" id="category-modal-content">
+            <div class="bg-gray-50 px-6 py-4 border-b border-gray-100 flex justify-between items-center flex-shrink-0">
+                <h3 class="font-bold text-gray-800 text-lg flex items-center gap-2"><i class="fas fa-chart-pie text-blue-500"></i> <span id="cat-modal-title">Category Analysis</span></h3>
+                <button onclick="closeCategoryModal()" class="text-gray-400 hover:text-gray-600 w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-200 transition"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="flex-grow overflow-y-auto p-6 custom-scrollbar">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                    <div class="bg-blue-50 p-4 rounded-xl border border-blue-100 text-center"><p class="text-xs font-bold text-gray-500 uppercase mb-1">Total Stock</p><p class="text-2xl font-bold text-blue-600" id="cat-total-stock">-- MT</p></div>
+                    <div class="bg-green-50 p-4 rounded-xl border border-green-100 text-center"><p class="text-xs font-bold text-gray-500 uppercase mb-1">Active Farmers</p><p class="text-2xl font-bold text-green-600" id="cat-total-farmers">--</p></div>
+                    <div class="bg-orange-50 p-4 rounded-xl border border-orange-100 text-center"><p class="text-xs font-bold text-gray-500 uppercase mb-1">Expected Yield</p><p class="text-2xl font-bold text-orange-600" id="cat-expected-yield">-- MT</p></div>
+                </div>
+                <div class="mb-8"><h4 class="text-sm font-bold text-gray-700 mb-4">Stock Distribution by Province</h4><div class="h-64 w-full bg-white p-2 rounded-xl border border-gray-100 shadow-sm"><canvas id="categoryChart"></canvas></div></div>
+                <div><h4 class="text-sm font-bold text-gray-700 mb-4">Provincial Breakdown</h4><div class="overflow-x-auto rounded-xl border border-gray-200"><table class="w-full text-left text-sm"><thead class="bg-gray-50 text-gray-500 uppercase text-xs font-bold"><tr><th class="px-4 py-3">Province</th><th class="px-4 py-3 text-right">Farmers</th><th class="px-4 py-3 text-right">Current Stock (MT)</th><th class="px-4 py-3 text-right">Exp. Yield (MT)</th><th class="px-4 py-3 text-center">Status</th></tr></thead><tbody class="divide-y divide-gray-100" id="cat-table-body"></tbody></table></div></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- National Overview Modal -->
+    <div id="national-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+        <div class="glass bg-white/95 rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden h-[80vh] flex flex-col">
+            <div class="bg-gray-50 px-6 py-4 border-b border-gray-100 flex justify-between items-center flex-shrink-0">
+                <h3 class="font-bold text-gray-800 text-lg flex items-center gap-2"><i class="fas fa-globe-asia text-blue-500"></i> <span id="nat-modal-title">Island-Wide Agriculture Status</span></h3>
+                <button onclick="closeNationalOverview()" class="text-gray-400 hover:text-gray-600 w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-200 transition"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="flex-grow overflow-y-auto p-6 custom-scrollbar">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                    <div class="bg-blue-50 p-4 rounded-xl border border-blue-100 text-center"><p class="text-xs font-bold text-gray-500 uppercase mb-1">Total Production</p><p class="text-2xl font-bold text-blue-600" id="nat-total-prod">-- MT</p></div>
+                    <div class="bg-green-50 p-4 rounded-xl border border-green-100 text-center"><p class="text-xs font-bold text-gray-500 uppercase mb-1">Active Farmers</p><p class="text-2xl font-bold text-green-600" id="nat-total-farmers">1.2M</p></div>
+                    <div class="bg-orange-50 p-4 rounded-xl border border-orange-100 text-center"><p class="text-xs font-bold text-gray-500 uppercase mb-1">Market Balance</p><p class="text-lg font-bold text-orange-600">Stable</p></div>
+                </div>
+                <div><h4 class="text-sm font-bold text-gray-700 mb-4">National Category Breakdown</h4><div class="overflow-x-auto rounded-xl border border-gray-200"><table class="w-full text-left text-sm"><thead class="bg-gray-50 text-gray-500 uppercase text-xs font-bold"><tr><th class="px-4 py-3">Category</th><th class="px-4 py-3 text-right">National Stock (MT)</th><th class="px-4 py-3 text-right">Expected Yield (MT)</th><th class="px-4 py-3 text-center">Status</th><th class="px-4 py-3 text-center">Trend</th></tr></thead><tbody class="divide-y divide-gray-100" id="nat-table-body"></tbody></table></div></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- EXPORT MARKET MODAL (Fixed with Darker Text) -->
+    <div id="export-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+        <div class="glass bg-white/95 rounded-2xl w-full max-w-5xl shadow-2xl overflow-hidden h-[85vh] flex flex-col">
+             <div class="bg-gray-50 px-6 py-4 border-b border-gray-100 flex justify-between items-center flex-shrink-0">
+                <h3 class="font-bold text-gray-800 text-lg flex items-center gap-2"><i class="fas fa-ship text-blue-500"></i> <span id="export-modal-title">Global Market Intelligence</span></h3>
+                <button onclick="closeExportMarket()" class="text-gray-400 hover:text-gray-600 w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-200 transition"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="flex-grow overflow-y-auto p-6 custom-scrollbar">
+                <!-- TOP SECTION: CONTROLS & MAP -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                    
+                    <!-- Left: Details - UPDATED COLORS FOR READABILITY -->
+                    <div class="glass-blue rounded-xl p-5 relative overflow-hidden flex flex-col justify-between space-y-4">
+                        <div class="absolute top-[-20px] right-[-20px] w-24 h-24 bg-white/20 rounded-full blur-xl"></div>
+                        <div>
+                            <p class="text-xs font-bold text-blue-800 uppercase mb-2">Target Crop</p>
+                            <!-- TRANSPARENT DROPDOWN WITH DARK TEXT -->
+                            <select id="export-crop-select" class="w-full bg-white/50 backdrop-blur-md text-gray-900 font-bold text-xl p-2 rounded-lg border border-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-400 cursor-pointer mb-2">
+                                <option value="Pineapple">Pineapple</option>
+                                <option value="Cinnamon">Cinnamon</option>
+                                <option value="Black Pepper">Black Pepper</option>
+                                <option value="Tea">Ceylon Tea</option>
+                                <option value="Coconut">Coconut</option>
+                            </select>
+                            <p class="text-sm text-blue-700 font-medium" id="export-hs-code">HS Code: 0804.30</p>
+                        </div>
+                         <div class="bg-white/50 p-4 rounded-lg border border-blue-200 shadow-sm">
+                            <p class="text-xs font-bold text-blue-900 uppercase">Global Demand</p>
+                            <h2 class="text-3xl font-bold text-gray-900 mt-1" id="export-demand">12,500 <span class="text-sm font-normal text-gray-600">MT</span></h2>
+                            <p class="text-xs text-blue-800 font-bold mt-1" id="export-season">High Season</p>
+                        </div>
+                         <div class="bg-white/50 p-4 rounded-lg border border-blue-200 shadow-sm">
+                            <p class="text-xs font-bold text-blue-900 uppercase">Avg FOB Price</p>
+                            <h2 class="text-3xl font-bold text-gray-900 mt-1" id="export-price">$1.85 <span class="text-sm font-normal text-gray-600">/ kg</span></h2>
+                            <p class="text-xs text-green-700 font-bold mt-1" id="export-trend">▲ +4.2% vs last month</p>
+                        </div>
+                    </div>
+
+                    <!-- Right: WORLD MAP PREVIEW -->
+                    <div class="lg:col-span-2 bg-gray-900 rounded-xl overflow-hidden relative shadow-inner border border-gray-200">
+                         <!-- Simple CSS World Map Background -->
+                         <div class="absolute inset-0 opacity-40 bg-[url('https://upload.wikimedia.org/wikipedia/commons/8/80/World_map_-_low_resolution.svg')] bg-cover bg-center"></div>
+                         <div class="absolute inset-0 bg-blue-900/20"></div>
+                         
+                         <div class="absolute top-4 left-4 z-10">
+                             <h4 class="text-white font-bold text-sm uppercase tracking-wider">Demand Hotspots</h4>
+                             <p class="text-xs text-gray-400">Live Buyer Requests</p>
+                         </div>
+
+                         <!-- Demand Dots Container -->
+                         <div id="world-map-dots" class="absolute inset-0">
+                             <!-- Dots injected via JS -->
+                         </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div><h4 class="text-sm font-bold text-gray-700 mb-4">Top Importing Countries</h4><div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm h-64"><canvas id="exportChart"></canvas></div></div>
+                    <div><h4 class="text-sm font-bold text-gray-700 mb-4">Active Buy Requests</h4><div class="space-y-3" id="export-requests"></div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- AUTH ---
+        let currentUser = null;
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedUser = localStorage.getItem('agriFlowUser');
+            if (savedUser) { currentUser = JSON.parse(savedUser); updateAuthUI(); }
+        });
+        function updateAuthUI() {
+            const btn = document.getElementById('auth-btn');
+            if (currentUser) {
+                let icon = 'fa-user'; let color = 'text-blue-600'; let bg = 'bg-blue-50';
+                if (currentUser.role === 'farmer') { icon = 'fa-tractor'; color = 'text-orange-600'; bg = 'bg-orange-50'; }
+                if (currentUser.role === 'admin') { icon = 'fa-user-shield'; color = 'text-red-600'; bg = 'bg-red-50'; }
+                btn.innerHTML = `<i class="fas ${icon} ${color}"></i> <span class="${color}">${currentUser.name}</span>`;
+                btn.className = `px-5 py-2 rounded-full ${bg} text-xs font-bold uppercase tracking-wide border border-gray-200 flex items-center gap-2`;
+                btn.onclick = logout;
+            } else {
+                btn.innerHTML = `<i class="fas fa-user-circle text-lg"></i> <span>Login</span>`;
+                btn.className = `px-5 py-2 rounded-full bg-white/80 text-blue-600 text-xs font-bold uppercase tracking-wide hover:bg-white hover:shadow-md transition border border-blue-100 flex items-center gap-2`;
+                btn.onclick = () => openLoginModal();
+            }
+        }
+        function logout() { if(confirm("Are you sure you want to logout?")) { localStorage.removeItem('agriFlowUser'); currentUser = null; updateAuthUI(); window.location.reload(); } }
+        function openLoginModal(targetRole = null) { const modal = document.getElementById('auth-modal'); const content = document.getElementById('auth-modal-content'); modal.classList.remove('hidden'); modal.classList.add('flex'); setTimeout(() => { content.classList.remove('scale-95', 'opacity-0'); content.classList.add('scale-100', 'opacity-100'); }, 10); if (targetRole) { selectRole(targetRole); } else { resetModal(); } }
+        function closeLoginModal() { const modal = document.getElementById('auth-modal'); const content = document.getElementById('auth-modal-content'); content.classList.remove('scale-100', 'opacity-100'); content.classList.add('scale-95', 'opacity-0'); setTimeout(() => { modal.classList.add('hidden'); modal.classList.remove('flex'); }, 300); }
+        function resetModal() { document.getElementById('step-role').classList.remove('hidden'); document.getElementById('step-farmer').classList.add('hidden'); document.getElementById('step-customer').classList.add('hidden'); document.getElementById('step-admin').classList.add('hidden'); document.getElementById('modal-title').innerText = "Login to AgriFlow"; }
+        function selectRole(role) { document.getElementById('step-role').classList.add('hidden'); if (role === 'farmer') { document.getElementById('step-farmer').classList.remove('hidden'); document.getElementById('modal-title').innerText = "Farmer Registration"; } else if (role === 'customer') { document.getElementById('step-customer').classList.remove('hidden'); document.getElementById('modal-title').innerText = "Customer Registration"; } else if (role === 'admin') { document.getElementById('step-admin').classList.remove('hidden'); document.getElementById('modal-title').innerText = "Admin Access"; } }
+        function handleLogin(role) { let name = ""; if (role === 'admin') { const u = document.getElementById('a-user').value; const p = document.getElementById('a-pass').value; if (u === 'admin' && p === 'admin123') { name = "Administrator"; } else { alert("Invalid Credentials!"); return; } } else { const nameInput = role === 'farmer' ? document.getElementById('f-name') : document.getElementById('c-name'); name = nameInput.value || (role === 'farmer' ? "Kamal Perera" : "Nimali Silva"); } currentUser = { role: role, name: name }; localStorage.setItem('agriFlowUser', JSON.stringify(currentUser)); updateAuthUI(); closeLoginModal(); if(role === 'admin') { window.location.href = 'admin.html'; } else { alert(`Logged in as ${role.toUpperCase()}`); } }
+
+        // --- DASHBOARD LOGIC ---
+        const provinces = [ { id: 'central', name: 'Central Province' }, { id: 'eastern', name: 'Eastern Province' }, { id: 'north_central', name: 'North Central' }, { id: 'north_western', name: 'North Western' }, { id: 'northern', name: 'Northern Province' }, { id: 'sabaragamuwa', name: 'Sabaragamuwa' }, { id: 'southern', name: 'Southern Province' }, { id: 'uva', name: 'Uva Province' }, { id: 'western', name: 'Western Province' } ];
+        
+        function getCategoryMockData(category) { const baseFactor = Math.random() * 0.5 + 0.8; const provStats = provinces.map(p => ({ name: p.name, farmers: Math.floor(Math.random() * 5000 * baseFactor) + 1000, stock: Math.floor(Math.random() * 200 * baseFactor) + 50, yield: Math.floor(Math.random() * 300 * baseFactor) + 100, status: Math.random() > 0.5 ? 'Stable' : (Math.random() > 0.5 ? 'High' : 'Low') })); const totalStock = provStats.reduce((acc, curr) => acc + curr.stock, 0); const totalFarmers = provStats.reduce((acc, curr) => acc + curr.farmers, 0); const expectedYield = provStats.reduce((acc, curr) => acc + curr.yield, 0); return { totalStock, totalFarmers, expectedYield, provStats }; }
+        let categoryChartInstance = null;
+        function showCategoryDetails(category) { const modal = document.getElementById('category-modal'); document.getElementById('cat-modal-title').innerText = category + " Insights"; const data = getCategoryMockData(category); document.getElementById('cat-total-stock').innerText = data.totalStock.toLocaleString() + " MT"; document.getElementById('cat-total-farmers').innerText = data.totalFarmers.toLocaleString(); document.getElementById('cat-expected-yield').innerText = data.expectedYield.toLocaleString() + " MT"; const tbody = document.getElementById('cat-table-body'); tbody.innerHTML = ''; data.provStats.forEach(p => { let color = p.status === 'High' ? 'text-green-600' : (p.status === 'Low' ? 'text-red-500' : 'text-blue-500'); tbody.innerHTML += `<tr class="hover:bg-gray-50 transition"><td class="px-4 py-3 font-medium text-gray-700">${p.name}</td><td class="px-4 py-3 text-right text-gray-600">${p.farmers.toLocaleString()}</td><td class="px-4 py-3 text-right text-gray-600 font-mono">${p.stock}</td><td class="px-4 py-3 text-right text-gray-600 font-mono">${p.yield}</td><td class="px-4 py-3 text-center font-bold text-xs ${color}">${p.status.toUpperCase()}</td></tr>`; }); const ctx = document.getElementById('categoryChart').getContext('2d'); if(categoryChartInstance) categoryChartInstance.destroy(); categoryChartInstance = new Chart(ctx, { type: 'bar', data: { labels: data.provStats.map(p => p.name.replace(' Province', '')), datasets: [{ label: 'Current Stock (MT)', data: data.provStats.map(p => p.stock), backgroundColor: '#3B82F6', borderRadius: 4 }, { label: 'Expected Yield (MT)', data: data.provStats.map(p => p.yield), backgroundColor: '#10B981', borderRadius: 4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' } }, scales: { y: { beginAtZero: true } } } }); modal.classList.remove('hidden'); modal.classList.add('flex'); }
+        function closeCategoryModal() { document.getElementById('category-modal').classList.add('hidden'); document.getElementById('category-modal').classList.remove('flex'); }
+
+        function openNationalOverview() { const modal = document.getElementById('national-modal'); const tbody = document.getElementById('nat-table-body'); tbody.innerHTML = ''; const categories = ['Paddy', 'Vegetables', 'Fruits', 'Tea', 'Spices']; let totalProd = 0; categories.forEach(cat => { const stock = Math.floor(Math.random() * 10000) + 5000; const yield = Math.floor(Math.random() * 15000) + 8000; const status = stock > yield ? 'Surplus' : (stock < 5000 ? 'Shortage' : 'Stable'); const color = status === 'Surplus' ? 'text-orange-500' : (status === 'Shortage' ? 'text-red-500' : 'text-green-600'); const trend = Math.random() > 0.5 ? '↗' : '↘'; totalProd += stock; tbody.innerHTML += `<tr class="hover:bg-gray-50 transition"><td class="px-4 py-3 font-medium text-gray-700">${cat}</td><td class="px-4 py-3 text-right text-gray-600 font-mono">${stock.toLocaleString()}</td><td class="px-4 py-3 text-right text-gray-600 font-mono">${yield.toLocaleString()}</td><td class="px-4 py-3 text-center font-bold text-xs ${color}">${status.toUpperCase()}</td><td class="px-4 py-3 text-center text-gray-400 font-bold">${trend}</td></tr>`; }); document.getElementById('nat-total-prod').innerText = (totalProd / 1000).toFixed(1) + "k MT"; modal.classList.remove('hidden'); modal.classList.add('flex'); }
+        function closeNationalOverview() { document.getElementById('national-modal').classList.add('hidden'); document.getElementById('national-modal').classList.remove('flex'); }
+
+        // --- EXPORT MARKET LOGIC (Map Dots Added) ---
+        const exportData = {
+            'Pineapple': { hs: '0804.30', price: '$1.85', trend: '▲ +4.2%', demand: '12,500', season: 'High Season', 
+                           buyers: [{name:'Dubai Fresh', item:'MD2 Pineapple', tag:'High Priority', color:'green'}, {name:'Carrefour France', item:'Organic', tag:'Bulk', color:'blue'}], 
+                           countries: ['UAE', 'France', 'Germany', 'Japan', 'USA'], volumes: [4500, 3200, 2100, 1800, 900],
+                           // Coordinates for dots (Top, Left in %)
+                           dots: [{t:40, l:58, c:'UAE'}, {t:30, l:48, c:'France'}, {t:28, l:50, c:'Germany'}, {t:35, l:85, c:'Japan'}, {t:35, l:20, c:'USA'}]
+            },
+            'Cinnamon': { hs: '0906.11', price: '$12.50', trend: '▲ +1.5%', demand: '8,200', season: 'All Year', 
+                          buyers: [{name:'Spice World USA', item:'Alba Grade', tag:'Premium', color:'purple'}, {name:'Mexico Imports', item:'C5 Grade', tag:'Regular', color:'blue'}], 
+                          countries: ['Mexico', 'USA', 'Peru', 'Colombia', 'Spain'], volumes: [3500, 2500, 1200, 800, 600],
+                          dots: [{t:45, l:18, c:'Mexico'}, {t:35, l:20, c:'USA'}, {t:60, l:25, c:'Peru'}, {t:55, l:24, c:'Colombia'}, {t:35, l:47, c:'Spain'}]
+            },
+            'Black Pepper': { hs: '0904.11', price: '$6.20', trend: '▼ -2.1%', demand: '5,000', season: 'Low Season', 
+                              buyers: [{name:'India Spice Co', item:'G1 Pepper', tag:'Urgent', color:'red'}], 
+                              countries: ['India', 'Germany', 'USA', 'Egypt', 'UAE'], volumes: [2000, 1500, 800, 500, 200],
+                              dots: [{t:45, l:65, c:'India'}, {t:28, l:50, c:'Germany'}, {t:35, l:20, c:'USA'}, {t:42, l:55, c:'Egypt'}, {t:40, l:58, c:'UAE'}]
+            },
+            'Tea': { hs: '0902.30', price: '$4.50', trend: '▲ +0.8%', demand: '25,000', season: 'Peak', 
+                     buyers: [{name:'Russia Tea House', item:'BOPF', tag:'Bulk', color:'blue'}, {name:'Turkey Traders', item:'Dust 1', tag:'Regular', color:'green'}], 
+                     countries: ['Turkey', 'Russia', 'Iraq', 'Iran', 'China'], volumes: [8000, 6500, 4000, 3500, 3000],
+                     dots: [{t:35, l:55, c:'Turkey'}, {t:20, l:60, c:'Russia'}, {t:38, l:58, c:'Iraq'}, {t:38, l:60, c:'Iran'}, {t:35, l:75, c:'China'}]
+            },
+            'Coconut': { hs: '0801.12', price: '$0.45', trend: '→ 0.0%', demand: '15,000', season: 'Stable', 
+                         buyers: [{name:'CocoWater UK', item:'King Coconut', tag:'Niche', color:'purple'}], 
+                         countries: ['USA', 'UK', 'Germany', 'China', 'Australia'], volumes: [5000, 4000, 3000, 2000, 1000],
+                         dots: [{t:35, l:20, c:'USA'}, {t:28, l:46, c:'UK'}, {t:28, l:50, c:'Germany'}, {t:35, l:75, c:'China'}, {t:70, l:85, c:'Australia'}]
+            }
+        };
+
+        let exportChartInstance = null;
+        function openExportMarket() {
+            const modal = document.getElementById('export-modal'); 
+            modal.classList.remove('hidden'); 
+            modal.classList.add('flex');
+            const select = document.getElementById('export-crop-select'); 
+            select.onchange = () => updateExportView(select.value);
+            updateExportView('Pineapple'); // Default load
+        }
+        
+        function updateExportView(crop) {
+            const data = exportData[crop]; if (!data) return;
+            document.getElementById('export-hs-code').innerText = "HS Code: " + data.hs;
+            // Updated to use dark text for values
+            document.getElementById('export-price').innerHTML = `${data.price} <span class="text-sm font-normal text-gray-600">/ kg</span>`;
+            document.getElementById('export-trend').innerText = data.trend;
+            // Updated to use dark text for values
+            document.getElementById('export-demand').innerHTML = `${data.demand} <span class="text-sm font-normal text-gray-600">MT</span>`;
+            document.getElementById('export-season').innerText = data.season;
+            
+            // Update Request List
+            const reqContainer = document.getElementById('export-requests'); 
+            reqContainer.innerHTML = '';
+            data.buyers.forEach(b => {
+                const colorClass = b.color === 'green' ? 'bg-green-100 text-green-700' : (b.color === 'blue' ? 'bg-blue-100 text-blue-700' : (b.color === 'purple' ? 'bg-purple-100 text-purple-700' : 'bg-red-100 text-red-700'));
+                reqContainer.innerHTML += `<div class="p-3 rounded-xl border border-gray-200 bg-gray-50 flex justify-between items-center"><div><p class="font-bold text-gray-800 text-sm">${b.name}</p><p class="text-xs text-gray-500">Looking for: ${b.item}</p></div><span class="${colorClass} text-[10px] font-bold px-2 py-1 rounded">${b.tag}</span></div>`;
+            });
+            
+            // Update Chart
+            const ctx = document.getElementById('exportChart').getContext('2d'); 
+            if(exportChartInstance) exportChartInstance.destroy();
+            
+            exportChartInstance = new Chart(ctx, { 
+                type: 'bar', 
+                data: { 
+                    labels: data.countries, 
+                    datasets: [{ label: 'Demand (MT)', data: data.volumes, backgroundColor: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#6366F1'], borderRadius: 4 }] 
+                }, 
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false, 
+                    plugins: { legend: { display: false } }, 
+                    scales: { y: { beginAtZero: true } } 
+                } 
+            });
+
+            // Update Map Dots
+            const mapContainer = document.getElementById('world-map-dots');
+            mapContainer.innerHTML = '';
+            if(data.dots) {
+                data.dots.forEach(dot => {
+                    const dotEl = document.createElement('div');
+                    dotEl.className = 'demand-dot';
+                    // Simple color logic for demo: red for high priority, white for standard
+                    const isHigh = data.buyers.some(b => b.color === 'red' || b.color === 'purple'); 
+                    dotEl.style.top = dot.t + '%';
+                    dotEl.style.left = dot.l + '%';
+                    dotEl.style.borderColor = isHigh ? '#EF4444' : '#F59E0B'; // Red or Orange
+                    dotEl.setAttribute('data-country', dot.c);
+                    mapContainer.appendChild(dotEl);
+                });
+            }
+        }
+        
+        function closeExportMarket() { 
+            document.getElementById('export-modal').classList.add('hidden'); 
+            document.getElementById('export-modal').classList.remove('flex'); 
+        }
+
+        // Weather
+        async function fetchWeather() { try { const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=6.9497&longitude=80.7891&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto`); const data = await res.json(); document.getElementById('weather-temp').innerText = Math.round(data.current.temperature_2m) + "°"; document.getElementById('weather-desc').innerText = getWeatherDesc(data.current.weather_code); document.getElementById('weather-wind').innerText = data.current.wind_speed_10m + " km/h"; document.getElementById('weather-humidity').innerText = data.current.relative_humidity_2m + "%"; document.getElementById('weather-rain').innerText = (data.daily.precipitation_probability_max ? data.daily.precipitation_probability_max[0] : 0) + "%"; populateForecast(data.daily); } catch(e) { console.log("Weather error", e); document.getElementById('weather-desc').innerText = "Unavailable"; } }
+        function getWeatherDesc(code) { if(code === 0) return "Clear Sky"; if(code < 3) return "Partly Cloudy"; if(code < 50) return "Foggy"; if(code < 80) return "Rainy"; return "Stormy"; }
+        function getWeatherIcon(code) { if(code === 0) return '<i class="fas fa-sun text-yellow-500"></i>'; if(code < 80) return '<i class="fas fa-cloud-rain text-blue-400"></i>'; return '<i class="fas fa-bolt text-yellow-600"></i>'; }
+        function populateForecast(daily) { const list = document.getElementById('forecast-list-full'); list.innerHTML = ''; for(let i=1; i<=6; i++) { const date = new Date(daily.time[i]).toLocaleDateString('en-US', {weekday: 'long', month: 'short', day: 'numeric'}); const max = Math.round(daily.temperature_2m_max[i]); const min = Math.round(daily.temperature_2m_min[i]); const code = daily.weather_code[i]; const rain = daily.precipitation_probability_max[i]; list.innerHTML += `<div class="flex items-center justify-between p-3 bg-white/40 rounded-xl border border-white/50 hover:bg-white/60 transition cursor-default"><div class="flex items-center gap-3 w-1/3"><span class="text-sm font-bold text-gray-700">${date}</span></div><div class="flex items-center gap-3 w-1/3 justify-center"><div class="text-xl">${getWeatherIcon(code)}</div><div class="text-xs font-bold text-blue-600 flex items-center gap-1"><i class="fas fa-tint"></i> ${rain}%</div></div><div class="flex items-center gap-2 w-1/3 justify-end"><span class="font-bold text-gray-800">${max}°</span><span class="text-gray-400 text-sm">/ ${min}°</span></div></div>`; } }
+        function switchWeatherTab(tab) { document.querySelectorAll('.weather-tab').forEach(t => t.classList.remove('active')); document.getElementById('tab-' + tab).classList.add('active'); if(tab === 'today') { document.getElementById('view-today').classList.remove('hidden'); document.getElementById('view-forecast').classList.add('hidden'); } else { document.getElementById('view-today').classList.add('hidden'); document.getElementById('view-forecast').classList.remove('hidden'); } }
+        function initWeatherGraph() { const ctx = document.getElementById('weatherGraph').getContext('2d'); const labels = ['Now', '2 PM', '4 PM', '6 PM', '8 PM', '10 PM', '12 AM', '2 AM']; const temps = [28, 29, 28, 26, 24, 23, 22, 21]; new Chart(ctx, { type: 'line', data: { labels: labels, datasets: [{ label: 'Temp', data: temps, borderColor: '#F59E0B', backgroundColor: 'rgba(245, 158, 11, 0.1)', borderWidth: 3, tension: 0.4, pointBackgroundColor: '#fff', pointBorderColor: '#F59E0B', pointRadius: 4, fill: true }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { enabled: true } }, scales: { x: { grid: { display: false }, ticks: { color: '#64748b', font: { size: 10 } } }, y: { display: false, min: 15, max: 35 } } } }); }
+        
+        fetchWeather();
+        setTimeout(initWeatherGraph, 500);
+
+        // Chart
+        document.addEventListener("DOMContentLoaded", function() { const ctx = document.getElementById('nationalChart').getContext('2d'); const gradientDemand = ctx.createLinearGradient(0, 0, 0, 400); gradientDemand.addColorStop(0, 'rgba(59, 130, 246, 0.8)'); gradientDemand.addColorStop(1, 'rgba(59, 130, 246, 0.1)'); const gradientSupply = ctx.createLinearGradient(0, 0, 0, 400); gradientSupply.addColorStop(0, 'rgba(16, 185, 129, 0.8)'); gradientSupply.addColorStop(1, 'rgba(16, 185, 129, 0.1)'); new Chart(ctx, { type: 'bar', data: { labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May'], datasets: [ { label: 'Demand', data: [120, 130, 125, 140, 150], backgroundColor: gradientDemand, borderRadius: 4, barThickness: 12 }, { label: 'Supply', data: [115, 128, 140, 135, 120], backgroundColor: gradientSupply, borderRadius: 4, barThickness: 12 } ] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: false, grid: { color: 'rgba(0,0,0,0.03)', borderDash: [5, 5] }, ticks: { font: { size: 10, family: "'Outfit', sans-serif" }, color: '#9CA3AF' }, border: { display: false } }, x: { grid: { display: false }, ticks: { font: { size: 10, family: "'Outfit', sans-serif" }, color: '#9CA3AF' }, border: { display: false } } } } }); });
+    </script>
+</body>
+</html>

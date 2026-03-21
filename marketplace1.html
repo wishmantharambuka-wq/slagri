@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgriFlow - Premium Marketplace</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        :root { 
+            --glass-base: rgba(255, 255, 255, 0.65); 
+            --glass-border: rgba(255, 255, 255, 0.5); 
+            --primary-orange: #F97316; 
+        }
+        
+        body { 
+            background: linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%);
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(255, 165, 0, 0.1) 0px, transparent 50%), 
+                radial-gradient(at 100% 0%, rgba(0, 255, 127, 0.1) 0px, transparent 50%), 
+                radial-gradient(at 100% 100%, rgba(0, 191, 255, 0.1) 0px, transparent 50%);
+            background-attachment: fixed; 
+            background-size: cover; 
+            font-family: 'Outfit', sans-serif; 
+            color: #1F2937; 
+        }
+        
+        /* Premium Glass Effect */
+        .glass { 
+            background: rgba(255, 255, 255, 0.45); 
+            backdrop-filter: blur(20px); 
+            -webkit-backdrop-filter: blur(20px); 
+            border: 1px solid rgba(255, 255, 255, 0.6); 
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05); 
+        }
+
+        .glass-ash {
+            background: rgba(243, 244, 246, 0.6); /* Slightly more opaque ash */
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.05);
+        }
+        
+        .glass-panel { 
+            background: rgba(255, 255, 255, 0.75); 
+            backdrop-filter: blur(20px); 
+            -webkit-backdrop-filter: blur(20px); 
+            border-bottom: 1px solid rgba(255, 255, 255, 0.5); 
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.05);
+        }
+        
+        .glass-card { 
+            background: rgba(255, 255, 255, 0.55);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+        }
+        
+        .glass-card:hover { 
+            transform: translateY(-6px); 
+            background: rgba(255, 255, 255, 0.85);
+            box-shadow: 0 20px 50px 0 rgba(31, 38, 135, 0.1); 
+            border-color: rgba(255, 255, 255, 0.9); 
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(156, 163, 175, 0.5); border-radius: 10px; }
+        
+        /* Status Badges */
+        .status-shortage { background: rgba(254, 226, 226, 0.9); color: #991b1b; border: 1px solid rgba(254, 202, 202, 0.8); }
+        .status-surplus { background: rgba(254, 243, 199, 0.9); color: #92400e; border: 1px solid rgba(253, 230, 138, 0.8); }
+        .status-stable { background: rgba(209, 250, 229, 0.9); color: #065f46; border: 1px solid rgba(167, 243, 208, 0.8); }
+
+        .price-up { color: #16a34a; }
+        .price-down { color: #dc2626; }
+
+        .fade-in { animation: fadeIn 0.6s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); filter: blur(5px); } to { opacity: 1; transform: translateY(0); filter: blur(0); } }
+
+        /* Form Elements Glass */
+        select, input {
+            background: rgba(255, 255, 255, 0.6) !important;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.6) !important;
+        }
+        select:focus, input:focus {
+            background: rgba(255, 255, 255, 0.95) !important;
+            box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.3) !important;
+        }
+
+        /* Fixed Alert Styles - High Visibility */
+        .alert-shortage {
+            background: rgba(254, 226, 226, 0.95); /* Solid-ish Red Tint */
+            border-left: 5px solid #DC2626; /* Strong Red Border */
+            box-shadow: 0 4px 6px -1px rgba(220, 38, 38, 0.1), 0 2px 4px -1px rgba(220, 38, 38, 0.06);
+        }
+        .alert-surplus {
+            background: rgba(254, 243, 199, 0.95); /* Solid-ish Orange Tint */
+            border-left: 5px solid #D97706; /* Strong Orange Border */
+            box-shadow: 0 4px 6px -1px rgba(217, 119, 6, 0.1), 0 2px 4px -1px rgba(217, 119, 6, 0.06);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col antialiased h-screen overflow-hidden text-gray-700">
+
+    <!-- Navbar -->
+    <nav class="glass-panel sticky top-0 z-50 px-6 py-4 shadow-sm flex-shrink-0">
+        <div class="max-w-full mx-auto flex justify-between items-center">
+            <a href="index.html" class="flex items-center gap-3 cursor-pointer group">
+                <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center text-white shadow-xl group-hover:shadow-green-300/50 transition duration-300">
+                    <i class="fas fa-leaf text-lg"></i>
+                </div>
+                <div class="flex flex-col">
+                    <span class="text-xl font-bold tracking-tight text-gray-900 leading-none">Agri<span class="text-orange-500">Flow</span></span>
+                    <span class="text-[10px] text-gray-500 font-bold tracking-widest uppercase mt-0.5">National Intelligence</span>
+                </div>
+            </a>
+            
+            <div class="hidden md:flex bg-white/30 p-1.5 rounded-full backdrop-blur-xl border border-white/40 shadow-inner">
+                <a href="index.html" class="nav-link px-5 py-2 rounded-full text-xs font-medium text-gray-600 hover:bg-white/60 hover:text-orange-600 transition">Dashboard</a>
+                <a href="map.html" class="nav-link px-5 py-2 rounded-full text-xs font-medium text-gray-600 hover:bg-white/60 hover:text-orange-600 transition">Map & Intelligence</a>
+                <a href="marketplace.html" class="nav-link px-5 py-2 rounded-full text-xs font-bold bg-white text-orange-600 shadow-md transform scale-105">Marketplace</a>
+                <a href="farmer.html" class="nav-link px-5 py-2 rounded-full text-xs font-medium text-gray-600 hover:bg-white/60 hover:text-orange-600 transition">Farmer Zone</a>
+            </div>
+
+            <button id="auth-btn" onclick="openLoginModal()" class="px-6 py-2.5 rounded-full bg-white/80 text-blue-600 text-xs font-bold uppercase tracking-wide border border-white shadow-sm hover:shadow-lg hover:bg-white transition flex items-center gap-2">
+                <i class="fas fa-user-circle text-lg"></i> <span>Login</span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Main Content Grid -->
+    <main class="flex-grow container mx-auto px-4 py-8 max-w-[1600px] h-full overflow-hidden flex flex-col md:flex-row gap-8">
+        
+        <!-- LEFT: Filters (20%) -->
+        <aside class="w-full md:w-1/5 flex flex-col gap-6 overflow-y-auto custom-scrollbar pb-20">
+            
+            <!-- Filter Box -->
+            <div class="glass p-6 rounded-3xl">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="font-bold text-gray-800 flex items-center gap-2 text-lg"><i class="fas fa-sliders-h text-orange-500"></i> Filters</h3>
+                    <button class="text-xs text-orange-500 font-bold hover:underline" onclick="resetFilters()">Reset</button>
+                </div>
+                
+                <div class="space-y-6">
+                    <div>
+                        <label class="text-xs font-bold text-gray-500 uppercase tracking-wide ml-1">District</label>
+                        <div class="relative mt-2">
+                            <select id="district-filter" onchange="renderMarketplace()" class="w-full p-3 rounded-xl text-sm font-medium text-gray-700 cursor-pointer appearance-none">
+                                <option value="All">All Island</option>
+                                <optgroup label="Western Province">
+                                    <option value="Colombo">Colombo</option>
+                                    <option value="Gampaha">Gampaha</option>
+                                    <option value="Kalutara">Kalutara</option>
+                                </optgroup>
+                                <optgroup label="Central Province">
+                                    <option value="Kandy">Kandy</option>
+                                    <option value="Matale">Matale</option>
+                                    <option value="Nuwara Eliya">Nuwara Eliya</option>
+                                </optgroup>
+                                <optgroup label="Southern Province">
+                                    <option value="Galle">Galle</option>
+                                    <option value="Matara">Matara</option>
+                                    <option value="Hambantota">Hambantota</option>
+                                </optgroup>
+                                <optgroup label="North Central">
+                                    <option value="Anuradhapura">Anuradhapura</option>
+                                    <option value="Polonnaruwa">Polonnaruwa</option>
+                                </optgroup>
+                                <optgroup label="Northern Province">
+                                    <option value="Jaffna">Jaffna</option>
+                                </optgroup>
+                                <optgroup label="Uva Province">
+                                    <option value="Badulla">Badulla</option>
+                                    <option value="Monaragala">Monaragala</option>
+                                </optgroup>
+                            </select>
+                            <i class="fas fa-chevron-down absolute right-3 top-3.5 text-gray-400 pointer-events-none text-xs"></i>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="text-xs font-bold text-gray-500 uppercase tracking-wide ml-1">Main Category</label>
+                        <div class="relative mt-2">
+                            <select id="main-cat-filter" onchange="updateCropFilter()" class="w-full p-3 rounded-xl text-sm font-medium text-gray-700 cursor-pointer appearance-none">
+                                <option value="All">All Categories</option>
+                                <option value="VegUp">Vegetables (Up Country)</option>
+                                <option value="VegLow">Vegetables (Low Country)</option>
+                                <option value="Fruits">Fruits</option>
+                                <option value="Grains">Staples & Grains</option>
+                                <option value="Spices">Spices</option>
+                            </select>
+                            <i class="fas fa-chevron-down absolute right-3 top-3.5 text-gray-400 pointer-events-none text-xs"></i>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="text-xs font-bold text-gray-500 uppercase tracking-wide ml-1">Specific Crop</label>
+                        <div class="relative mt-2">
+                            <select id="crop-filter" onchange="renderMarketplace()" class="w-full p-3 rounded-xl text-sm font-medium text-gray-700 cursor-pointer appearance-none">
+                                <option value="All">All Crops</option>
+                                <!-- Populated dynamically -->
+                            </select>
+                            <i class="fas fa-chevron-down absolute right-3 top-3.5 text-gray-400 pointer-events-none text-xs"></i>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="text-xs font-bold text-gray-500 uppercase tracking-wide ml-1">Price Range (Rs)</label>
+                        <div class="flex gap-2 mt-2">
+                            <input type="number" placeholder="Min" class="w-1/2 p-3 rounded-xl text-xs">
+                            <input type="number" placeholder="Max" class="w-1/2 p-3 rounded-xl text-xs">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Logistic Support (Improved) -->
+            <div class="glass p-6 rounded-3xl bg-white/40">
+                <h3 class="font-bold text-gray-800 mb-4 text-sm flex items-center gap-2"><i class="fas fa-truck-loading text-blue-600"></i> Logistic Network</h3>
+                <div class="space-y-3">
+                    <div class="bg-white/50 p-3 rounded-2xl border border-white/60 hover:shadow-md transition cursor-pointer">
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-[10px] font-bold text-gray-400 uppercase">Cold Storage</span>
+                            <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                        </div>
+                        <h4 class="text-sm font-bold text-gray-800">Dambulla Hub A1</h4>
+                        <div class="flex items-center gap-2 mt-2 text-[10px] text-gray-600">
+                            <i class="fas fa-thermometer-half"></i> <span>4°C</span>
+                            <span class="mx-1">•</span>
+                            <i class="fas fa-box"></i> <span>40% Free</span>
+                        </div>
+                        <button class="w-full mt-2 py-1.5 rounded-lg bg-blue-50 text-blue-600 text-[10px] font-bold border border-blue-100 hover:bg-blue-100">Reserve Space</button>
+                    </div>
+
+                    <div class="bg-white/50 p-3 rounded-2xl border border-white/60 hover:shadow-md transition cursor-pointer">
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-[10px] font-bold text-gray-400 uppercase">Transport</span>
+                            <span class="w-2 h-2 rounded-full bg-orange-500"></span>
+                        </div>
+                        <h4 class="text-sm font-bold text-gray-800">AgriMove Express</h4>
+                        <div class="flex items-center gap-2 mt-2 text-[10px] text-gray-600">
+                            <i class="fas fa-truck"></i> <span>Cool Truck</span>
+                            <span class="mx-1">•</span>
+                            <span>Jaffna → Col</span>
+                        </div>
+                        <button class="w-full mt-2 py-1.5 rounded-lg bg-orange-50 text-orange-600 text-[10px] font-bold border border-orange-100 hover:bg-orange-100">Contact Driver</button>
+                    </div>
+                </div>
+            </div>
+
+        </aside>
+
+        <!-- CENTER: Listings (60%) -->
+        <section class="w-full md:w-3/5 flex flex-col h-full overflow-hidden">
+            
+            <!-- Header -->
+            <div class="flex justify-between items-center mb-8 px-2 flex-shrink-0">
+                <div>
+                    <h2 class="text-4xl font-extrabold text-gray-800 tracking-tight drop-shadow-sm">Live Market</h2>
+                    <p class="text-sm font-medium text-gray-500 mt-1">Real-time stock from verified national farmers.</p>
+                </div>
+                <button onclick="handleSellClick()" class="bg-gradient-to-r from-orange-500 to-red-500 text-white px-6 py-3 rounded-2xl text-sm font-bold shadow-lg shadow-orange-500/30 hover:shadow-orange-500/50 hover:scale-105 transition duration-300 flex items-center gap-2 border border-white/20">
+                    <i class="fas fa-plus-circle"></i> 
+                    <span>Sell Harvest</span>
+                </button>
+            </div>
+
+            <!-- Grid -->
+            <div id="marketplace-grid" class="grid grid-cols-1 lg:grid-cols-2 gap-6 overflow-y-auto custom-scrollbar pb-32 pr-2">
+                <!-- Cards Injected via JS -->
+            </div>
+        </section>
+
+        <!-- RIGHT: Intelligence & Requests (20%) -->
+        <aside class="w-full md:w-1/5 flex flex-col gap-6 overflow-y-auto custom-scrollbar pb-20">
+            
+            <!-- Live Buyer Requests (Scrollable Area) -->
+            <div class="glass-ash p-6 rounded-3xl relative overflow-hidden group border border-white/40">
+                <!-- Decorative Glow (Subtle) -->
+                <div class="absolute -top-10 -right-10 w-32 h-32 bg-blue-300 rounded-full blur-[60px] opacity-10 group-hover:opacity-20 transition"></div>
+                
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="font-bold text-gray-700 text-sm uppercase tracking-wider flex items-center gap-2"><i class="fas fa-bullhorn text-blue-500 animate-pulse"></i> Buyer Requests</h3>
+                    <span class="w-2 h-2 rounded-full bg-green-500"></span>
+                </div>
+                
+                <!-- SCROLLABLE CONTAINER ADDED HERE -->
+                <div class="space-y-3 max-h-[300px] overflow-y-auto custom-scrollbar pr-2" id="buyer-requests-list">
+                    <!-- Injected via JS -->
+                </div>
+                <button class="w-full mt-4 py-2.5 rounded-xl bg-white/60 hover:bg-white/80 text-xs font-bold transition border border-white/40 backdrop-blur-sm text-blue-600 shadow-sm">View All Requests</button>
+            </div>
+
+            <!-- Merged Market Alerts (Boxy & High Contrast) -->
+            <div class="glass-ash p-0 rounded-none border border-white/40 overflow-hidden shadow-sm mt-4">
+                <div class="p-4 bg-gray-900/5 backdrop-blur-sm border-b border-white/20 flex justify-between items-center">
+                    <h3 class="font-bold text-gray-800 text-sm uppercase tracking-wider flex items-center gap-2">
+                        <i class="fas fa-bell text-orange-600 animate-pulse"></i> Market Signals
+                    </h3>
+                    <span class="bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-sm">2 New</span>
+                </div>
+
+                <!-- Shortage Section -->
+                <div class="p-5 border-b border-gray-200/50 relative bg-red-100/80 hover:bg-red-200/50 transition">
+                    <div class="absolute left-0 top-0 bottom-0 w-1.5 bg-red-600"></div>
+                    <div class="flex items-start justify-between mb-1">
+                         <h4 class="font-black text-red-900 text-xs uppercase tracking-wide">Critical Shortage</h4>
+                         <i class="fas fa-bolt text-red-600"></i>
+                    </div>
+                    <p class="text-xs font-bold text-gray-800 mb-1">Carrots & Leeks</p>
+                    <p class="text-[10px] text-gray-700 leading-relaxed font-medium">Supply down 40%. Prices expected to rise by <span class="font-bold underline text-red-700">Rs 50</span>.</p>
+                </div>
+
+                <!-- Surplus Section -->
+                <div class="p-5 relative bg-orange-100/80 hover:bg-orange-200/50 transition">
+                    <div class="absolute left-0 top-0 bottom-0 w-1.5 bg-orange-500"></div>
+                     <div class="flex items-start justify-between mb-1">
+                         <h4 class="font-black text-orange-900 text-xs uppercase tracking-wide">Surplus Alert</h4>
+                         <i class="fas fa-layer-group text-orange-600"></i>
+                    </div>
+                    <p class="text-xs font-bold text-gray-800 mb-1">Pumpkin (Low Country)</p>
+                    <p class="text-[10px] text-gray-700 leading-relaxed font-medium">Prices dropping. Recommended: Send to drying centers.</p>
+                </div>
+            </div>
+
+        </aside>
+    </main>
+
+    <!-- INTELLIGENT SELL MODAL -->
+    <div id="sell-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/60 backdrop-blur-lg p-4 transition-all duration-300">
+        <div class="glass bg-white/95 rounded-[2rem] w-full max-w-5xl shadow-2xl overflow-hidden transform transition-all scale-95 opacity-0 flex flex-col md:flex-row h-[90vh] md:h-auto border border-white/50 ring-1 ring-white/60" id="sell-modal-content">
+            <!-- Left: Form -->
+            <div class="w-full md:w-3/5 p-8 overflow-y-auto custom-scrollbar bg-white/60 backdrop-blur-md">
+                <div class="flex justify-between items-center mb-6">
+                    <div>
+                        <h3 class="font-bold text-2xl text-gray-800">New Listing</h3>
+                        <p class="text-xs text-gray-500 mt-1 font-medium">Publish your harvest to the national grid.</p>
+                    </div>
+                    <button onclick="closeSellModal()" class="w-9 h-9 rounded-full bg-white shadow-sm border border-gray-100 flex items-center justify-center hover:bg-gray-50 hover:rotate-90 transition duration-300"><i class="fas fa-times text-gray-500"></i></button>
+                </div>
+                
+                <form id="sell-form" class="space-y-5">
+                    
+                    <!-- 2-Step Crop Selection -->
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1.5 tracking-wider">Main Category</label>
+                            <select id="sell-main-cat" class="w-full p-4 rounded-2xl border border-gray-200 bg-white/80 focus:ring-2 focus:ring-orange-500/50 outline-none transition" onchange="updateSellCropList()">
+                                <option value="">Select Category...</option>
+                                <option value="VegUp">Up-Country Veg</option>
+                                <option value="VegLow">Low-Country Veg</option>
+                                <option value="Fruits">Fruits</option>
+                                <option value="Grains">Grains</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1.5 tracking-wider">Specific Crop</label>
+                            <select id="sell-crop" class="w-full p-4 rounded-2xl border border-gray-200 bg-white/80 focus:ring-2 focus:ring-orange-500/50 outline-none transition" onchange="analyzeSellIntent()" disabled>
+                                <option value="">Select Category First</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- AI Advice Box (Dynamic) -->
+                    <div id="ai-advice-box" class="hidden p-5 rounded-2xl border transition-all duration-500 transform translate-y-2">
+                        <div class="flex gap-4">
+                            <div class="mt-1 p-2 rounded-full bg-white/50" id="ai-icon"></div>
+                            <div>
+                                <h4 class="text-sm font-bold" id="ai-title"></h4>
+                                <p class="text-xs mt-1.5 leading-relaxed font-medium opacity-90" id="ai-msg"></p>
+                                <div id="ai-actions" class="mt-4 flex gap-2"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-5">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1.5 tracking-wider">Price (Rs/kg)</label>
+                            <div class="relative">
+                                <span class="absolute left-4 top-4 text-gray-400 text-sm font-bold">Rs</span>
+                                <input type="number" id="sell-price" class="w-full pl-10 p-4 rounded-2xl border border-gray-200 bg-white/80 font-bold text-gray-800 focus:ring-2 focus:ring-orange-500/50 outline-none transition">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1.5 tracking-wider">Quantity (kg)</label>
+                            <input type="number" id="sell-qty" class="w-full p-4 rounded-2xl border border-gray-200 bg-white/80 focus:ring-2 focus:ring-orange-500/50 outline-none transition">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1.5 tracking-wider">Farm District</label>
+                        <select class="w-full p-4 rounded-2xl border border-gray-200 bg-white/80 focus:ring-2 focus:ring-orange-500/50 outline-none transition">
+                            <option>Nuwara Eliya</option>
+                            <option>Dambulla</option>
+                            <option>Hambantota</option>
+                            <option>Anuradhapura</option>
+                            <option>Jaffna</option>
+                        </select>
+                    </div>
+
+                    <!-- Photo Upload Section (Min 5, Max 10) -->
+                    <div>
+                        <div class="flex justify-between items-center mb-1.5">
+                             <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider">Storage Photos (Min 5, Max 10)</label>
+                             <span id="photo-count-label" class="text-[10px] font-bold text-orange-500 hidden">0 Selected</span>
+                        </div>
+                       
+                        <div class="border-2 border-dashed border-gray-300 rounded-2xl p-6 text-center hover:bg-gray-50/50 transition cursor-pointer relative group bg-white/40">
+                            <input type="file" id="sell-photos" multiple accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" onchange="handlePhotoUpload(this)">
+                            
+                            <div class="flex flex-col items-center justify-center transition group-hover:scale-105">
+                                <div class="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center mb-2 text-gray-400 group-hover:text-orange-500 group-hover:bg-orange-50 transition">
+                                    <i class="fas fa-camera text-lg"></i>
+                                </div>
+                                <p class="text-xs text-gray-500 font-medium">Click to upload photos of your stock</p>
+                                <p class="text-[10px] text-gray-400 mt-0.5">JPEG, PNG allowed</p>
+                            </div>
+                        </div>
+                        <!-- Preview Grid -->
+                        <div id="photo-preview-grid" class="grid grid-cols-5 gap-2 mt-3 empty:hidden"></div>
+                    </div>
+
+                    <button type="button" onclick="submitListing()" class="w-full bg-gray-900 text-white py-4 rounded-2xl font-bold shadow-xl hover:bg-black hover:scale-[1.01] transition transform mt-2 tracking-wide uppercase text-sm">Publish Listing</button>
+                </form>
+            </div>
+            
+            <!-- Right: Context -->
+            <div class="w-full md:w-2/5 bg-gradient-to-br from-blue-600 to-blue-800 p-10 text-white flex flex-col justify-center relative overflow-hidden">
+                <div class="absolute top-0 right-0 w-64 h-64 bg-white opacity-10 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/2"></div>
+                <div class="absolute bottom-0 left-0 w-64 h-64 bg-blue-400 opacity-20 rounded-full blur-[80px] translate-y-1/2 -translate-x-1/2"></div>
+                
+                <i class="fas fa-chart-line absolute -bottom-10 -right-10 text-9xl text-white/5 transform rotate-12"></i>
+                
+                <h4 class="font-bold text-2xl mb-2 relative z-10">Pricing Intelligence</h4>
+                <p class="text-blue-100 text-sm mb-8 font-medium leading-relaxed relative z-10">Real-time analysis based on today's trading volume at Dambulla Economic Center.</p>
+                
+                <div class="space-y-5 relative z-10">
+                    <div class="bg-white/10 p-5 rounded-2xl backdrop-blur-md border border-white/20 shadow-lg">
+                        <span class="text-[10px] text-blue-200 uppercase font-bold tracking-widest">Today's Market Avg</span>
+                        <div class="text-4xl font-bold mt-2 text-white drop-shadow-md" id="modal-avg-price">--</div>
+                    </div>
+                    <div class="bg-white/10 p-5 rounded-2xl backdrop-blur-md border border-white/20 shadow-lg">
+                        <span class="text-[10px] text-blue-200 uppercase font-bold tracking-widest">AI Forecast (7 Days)</span>
+                        <div class="text-xl font-bold mt-2 flex items-center gap-3" id="modal-forecast">--</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Login Modal (With Admin) -->
+    <div id="auth-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/50 backdrop-blur-sm transition-opacity duration-300">
+        <div class="glass bg-white p-8 rounded-[2rem] w-96 shadow-2xl transform transition-all scale-95 border border-white/60">
+            <h3 class="font-bold text-2xl mb-6 text-gray-800 text-center">Welcome Back</h3>
+            <div class="space-y-3">
+                <button onclick="login('farmer')" class="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-orange-500/30 hover:shadow-orange-500/50 transition">Farmer Login</button>
+                <button onclick="login('buyer')" class="w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 transition">Buyer Login</button>
+                <button onclick="login('admin')" class="w-full bg-gray-800 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-gray-900 transition flex items-center justify-center gap-2"><i class="fas fa-shield-alt text-xs"></i> Admin Access</button>
+            </div>
+            <button onclick="document.getElementById('auth-modal').classList.add('hidden')" class="w-full text-gray-400 text-xs mt-6 font-bold hover:text-gray-600">Cancel</button>
+        </div>
+    </div>
+
+    <script>
+        // --- DATA DEFS ---
+        const cropsDB = {
+            'VegUp': ['Carrot', 'Leeks', 'Cabbage', 'Beetroot', 'Beans', 'Radish'],
+            'VegLow': ['Pumpkin', 'Brinjal', 'Tomato', 'Okra', 'Snake Gourd', 'Bitter Gourd'],
+            'Fruits': ['Banana', 'Papaya', 'Mango', 'Pineapple', 'Watermelon', 'Avocado'],
+            'Grains': ['Paddy', 'Maize', 'Kurakkan', 'Sorghum'],
+            'Spices': ['Cinnamon', 'Pepper', 'Cardamom', 'Cloves']
+        };
+
+        const marketData = [
+            { id: 1, crop: "Carrot", district: "Nuwara Eliya", farmer: "K. Perera", verified: true, deliveries: 142, rating: 4.8, qty: 500, price: 280, harvestDate: "2025-12-08", demand: "high", forecast: "up", forecastVal: 320, img: "fas fa-carrot text-orange-500" },
+            { id: 2, crop: "Pumpkin", district: "Polonnaruwa", farmer: "S. Bandara", verified: true, deliveries: 45, rating: 4.5, qty: 2500, price: 60, harvestDate: "2025-12-06", demand: "surplus", forecast: "down", forecastVal: 45, img: "fas fa-circle text-yellow-600" },
+            { id: 3, crop: "Keeri Samba", district: "Anuradhapura", farmer: "M. Silva", verified: true, deliveries: 310, rating: 4.9, qty: 5000, price: 230, harvestDate: "2025-11-20", demand: "stable", forecast: "stable", forecastVal: 235, img: "fas fa-seedling text-green-600" },
+            { id: 4, crop: "Beans", district: "Bandarawela", farmer: "R. Gunawardena", verified: false, deliveries: 12, rating: 4.0, qty: 150, price: 450, harvestDate: "2025-12-07", demand: "high", forecast: "up", forecastVal: 480, img: "fas fa-bacon text-green-700" },
+            { id: 5, crop: "Tomato", district: "Matale", farmer: "T. Jayasinghe", verified: true, deliveries: 88, rating: 4.6, qty: 800, price: 180, harvestDate: "2025-12-08", demand: "low", forecast: "down", forecastVal: 150, img: "fas fa-apple-alt text-red-500" },
+            { id: 6, crop: "Leeks", district: "Nuwara Eliya", farmer: "P. Dissanayake", verified: true, deliveries: 205, rating: 4.9, qty: 1200, price: 180, harvestDate: "2025-12-09", demand: "high", forecast: "up", forecastVal: 210, img: "fas fa-leaf text-green-500" }
+        ];
+
+        // ADDED MORE MOCK DATA TO DEMONSTRATE SCROLLING
+        const buyerRequests = [
+            { buyer: "Hilton Colombo", item: "Carrots (Grade A)", qty: "500 kg", price: "Rs 300/kg" },
+            { buyer: "Cargills Food City", item: "Red Onions", qty: "2000 kg", price: "Market Rate" },
+            { buyer: "Export Consolidated", item: "Pineapple", qty: "1000 Pcs", price: "Rs 400/pc" },
+            { buyer: "Araliya Rice", item: "Samba Paddy", qty: "5000 kg", price: "Rs 110/kg" },
+            { buyer: "Cinnamon Grand", item: "Avocado", qty: "200 kg", price: "Rs 600/kg" },
+            { buyer: "Keells Super", item: "Leeks", qty: "1500 kg", price: "Market Rate" },
+            { buyer: "Jetwing Hotels", item: "Mango (Karthakolomban)", qty: "300 kg", price: "Rs 450/kg" }
+        ];
+
+        let currentUser = null;
+
+        // --- INIT & RENDER ---
+        function init() {
+            renderMarketplace();
+            renderBuyerRequests();
+            checkLogin();
+        }
+
+        function resetFilters() {
+            document.getElementById('district-filter').value = 'All';
+            document.getElementById('main-cat-filter').value = 'All';
+            updateCropFilter(); 
+            document.getElementById('crop-filter').value = 'All';
+            renderMarketplace();
+        }
+
+        // --- FILTER LOGIC ---
+        function updateCropFilter() {
+            const cat = document.getElementById('main-cat-filter').value;
+            const cropSelect = document.getElementById('crop-filter');
+            cropSelect.innerHTML = '<option value="All">All Crops</option>';
+
+            if(cat !== 'All' && cropsDB[cat]) {
+                cropsDB[cat].forEach(crop => {
+                    cropSelect.innerHTML += `<option value="${crop}">${crop}</option>`;
+                });
+            }
+            renderMarketplace();
+        }
+
+        function updateSellCropList() {
+            const cat = document.getElementById('sell-main-cat').value;
+            const cropSelect = document.getElementById('sell-crop');
+            
+            if(cat && cropsDB[cat]) {
+                cropSelect.innerHTML = '<option value="">Select Specific Crop...</option>';
+                cropsDB[cat].forEach(crop => {
+                    cropSelect.innerHTML += `<option value="${crop}">${crop}</option>`;
+                });
+                cropSelect.disabled = false;
+            } else {
+                cropSelect.innerHTML = '<option value="">Select Category First</option>';
+                cropSelect.disabled = true;
+                // Reset analysis
+                document.getElementById('ai-advice-box').classList.add('hidden');
+            }
+        }
+
+        function renderMarketplace() {
+            const grid = document.getElementById('marketplace-grid');
+            const districtFilter = document.getElementById('district-filter').value;
+            const cropFilter = document.getElementById('crop-filter').value;
+            const mainCatFilter = document.getElementById('main-cat-filter').value;
+            
+            grid.innerHTML = '';
+
+            let filteredData = marketData;
+
+            if (districtFilter !== 'All') {
+                filteredData = filteredData.filter(item => item.district === districtFilter || (districtFilter === 'Badulla' && item.district === 'Bandarawela') || (districtFilter === 'Hambantota' && item.district === 'Embilipitiya'));
+            }
+
+            if (cropFilter !== 'All') {
+                filteredData = filteredData.filter(item => item.crop === cropFilter);
+            } else if (mainCatFilter !== 'All') {
+                // If specific crop not selected, filter by category list
+                const allowedCrops = cropsDB[mainCatFilter];
+                if(allowedCrops) {
+                    filteredData = filteredData.filter(item => allowedCrops.includes(item.crop));
+                }
+            }
+
+            if(filteredData.length === 0) {
+                grid.innerHTML = `<div class="col-span-1 lg:col-span-2 flex flex-col items-center justify-center py-20 text-center opacity-60"><i class="fas fa-search text-6xl text-gray-400 mb-4"></i><h3 class="text-xl font-bold text-gray-600">No Stock Found</h3><button onclick="resetFilters()" class="mt-4 px-4 py-2 bg-white rounded-lg text-sm font-bold shadow text-orange-500">Clear Filters</button></div>`;
+                return;
+            }
+
+            filteredData.forEach(item => {
+                let badgeClass, badgeText;
+                if (item.demand === 'high') { badgeClass = 'status-shortage'; badgeText = '<i class="fas fa-bolt mr-1"></i> High Demand'; } 
+                else if (item.demand === 'surplus') { badgeClass = 'status-surplus'; badgeText = '<i class="fas fa-arrow-down mr-1"></i> Market Surplus'; } 
+                else { badgeClass = 'status-stable'; badgeText = '<i class="fas fa-check mr-1"></i> Stable'; }
+
+                const trendIcon = item.forecast === 'up' ? 'fa-arrow-trend-up text-red-500' : (item.forecast === 'down' ? 'fa-arrow-trend-down text-green-500' : 'fa-minus text-gray-400');
+                let progressColor = item.demand === 'high' ? 'bg-red-500' : (item.demand === 'surplus' ? 'bg-orange-400' : 'bg-gray-800');
+
+                const card = document.createElement('div');
+                card.className = "glass glass-card p-6 rounded-3xl border border-white/40 relative group fade-in flex flex-col";
+                card.innerHTML = `
+                    <div class="flex justify-between items-start mb-5">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 border border-white flex items-center justify-center text-gray-600 font-bold text-sm shadow-sm">${item.farmer.charAt(0)}</div>
+                            <div><p class="text-sm font-bold text-gray-800 leading-tight">${item.farmer}</p><p class="text-[10px] text-gray-500 flex items-center gap-1 mt-0.5 font-medium">${item.verified ? '<span class="text-blue-500 flex items-center gap-0.5"><i class="fas fa-certificate text-[9px]"></i> Verified</span>' : ''} • ${item.deliveries} sales</p></div>
+                        </div>
+                        <span class="px-2.5 py-1.5 rounded-lg text-[9px] font-extrabold uppercase tracking-wider ${badgeClass} shadow-sm">${badgeText}</span>
+                    </div>
+                    <div class="flex gap-5 mb-5">
+                        <div class="w-24 h-24 rounded-2xl bg-white/60 flex items-center justify-center text-5xl shadow-inner border border-white/50 group-hover:scale-105 transition duration-300"><i class="${item.img}"></i></div>
+                        <div class="flex-1 flex flex-col justify-center">
+                            <h3 class="text-xl font-extrabold text-gray-800 mb-1">${item.crop}</h3>
+                            <p class="text-xs text-gray-500 mb-3 font-medium flex items-center gap-1"><i class="fas fa-map-marker-alt text-orange-400"></i> ${item.district}</p>
+                            <div class="w-full bg-gray-200/50 rounded-full h-2 mb-1.5 overflow-hidden"><div class="${progressColor} h-2 rounded-full shadow-sm" style="width: 60%"></div></div>
+                            <div class="flex justify-between text-[10px] text-gray-500 font-bold tracking-wide"><span>Available: ${item.qty} kg</span><span class="text-gray-400">Harvest: ${item.harvestDate}</span></div>
+                        </div>
+                    </div>
+                    <div class="bg-white/40 rounded-2xl p-4 mb-5 border border-white/60 flex justify-between items-center backdrop-blur-sm">
+                        <div><p class="text-[9px] text-gray-500 uppercase font-bold tracking-wider mb-0.5">Current Price</p><p class="text-2xl font-extrabold text-gray-900 tracking-tight">Rs ${item.price}<span class="text-xs text-gray-500 font-medium ml-1">/kg</span></p></div>
+                        <div class="text-right border-l border-gray-300/50 pl-4"><p class="text-[9px] text-gray-500 uppercase font-bold tracking-wider mb-0.5">Next Week</p><p class="text-base font-bold flex items-center gap-1.5 justify-end text-gray-700"><i class="fas ${trendIcon}"></i> Rs ${item.forecastVal}</p></div>
+                    </div>
+                    <div class="flex gap-3 mt-auto"><button class="flex-1 bg-gray-900 text-white py-3 rounded-xl text-xs font-bold hover:bg-black transition shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">Buy Stock</button><button class="w-12 flex items-center justify-center rounded-xl border border-gray-300/50 bg-white/50 hover:bg-white text-gray-600 transition shadow-sm"><i class="far fa-heart"></i></button></div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function renderBuyerRequests() {
+            const list = document.getElementById('buyer-requests-list');
+            list.innerHTML = '';
+            buyerRequests.forEach(req => {
+                const div = document.createElement('div');
+                div.className = "flex justify-between items-center p-3.5 rounded-2xl bg-white/50 border border-white/60 hover:bg-white/70 transition cursor-pointer backdrop-blur-sm group";
+                div.innerHTML = `
+                    <div><p class="text-xs font-bold text-gray-800 group-hover:text-blue-600 transition">${req.buyer}</p><p class="text-sm text-gray-900 font-bold mt-0.5">${req.item}</p><p class="text-[10px] text-gray-500 mt-1 flex items-center gap-2"><i class="fas fa-balance-scale text-xs"></i> Needs ${req.qty}</p></div>
+                    <div class="text-right flex flex-col items-end gap-1"><span class="block px-2 py-0.5 rounded-md bg-green-100 text-green-700 text-[9px] font-bold border border-green-200">Active</span><span class="text-[10px] text-gray-500">${req.price}</span></div>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        // --- PHOTO UPLOAD LOGIC ---
+        function handlePhotoUpload(input) {
+            const files = input.files;
+            const preview = document.getElementById('photo-preview-grid');
+            const countLabel = document.getElementById('photo-count-label');
+            
+            // Validation: Max 10
+            if (files.length > 10) {
+                alert("Maximum 10 photos allowed.");
+                input.value = ''; // Clear selection
+                preview.innerHTML = '';
+                countLabel.classList.add('hidden');
+                return;
+            }
+
+            preview.innerHTML = '';
+            countLabel.innerText = `${files.length} Photos Selected`;
+            countLabel.classList.remove('hidden');
+            
+            Array.from(files).forEach(file => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = document.createElement('div');
+                    img.className = "h-14 w-full bg-cover bg-center rounded-lg border border-gray-300 shadow-sm relative";
+                    img.style.backgroundImage = `url(${e.target.result})`;
+                    preview.appendChild(img);
+                }
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // --- AUTH & MODALS ---
+        function handleSellClick() {
+            if(!currentUser) {
+                document.getElementById('auth-modal').classList.remove('hidden');
+                document.getElementById('auth-modal').classList.add('flex');
+            } else if (currentUser.role === 'buyer') {
+                alert("Only Farmers and Admins can sell.");
+            } else {
+                openSellModal();
+            }
+        }
+
+        function openSellModal() {
+            const modal = document.getElementById('sell-modal');
+            const content = document.getElementById('sell-modal-content');
+            modal.classList.remove('hidden'); modal.classList.add('flex');
+            setTimeout(() => { content.classList.remove('scale-95', 'opacity-0'); content.classList.add('scale-100', 'opacity-100'); }, 10);
+        }
+
+        function closeSellModal() {
+            const modal = document.getElementById('sell-modal');
+            const content = document.getElementById('sell-modal-content');
+            content.classList.remove('scale-100', 'opacity-100'); content.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => { modal.classList.add('hidden'); modal.classList.remove('flex'); }, 300);
+        }
+
+        function analyzeSellIntent() {
+            const crop = document.getElementById('sell-crop').value;
+            const box = document.getElementById('ai-advice-box');
+            const title = document.getElementById('ai-title');
+            const msg = document.getElementById('ai-msg');
+            const icon = document.getElementById('ai-icon');
+            const priceDisp = document.getElementById('modal-avg-price');
+            const forecastDisp = document.getElementById('modal-forecast');
+
+            if (!crop) { box.classList.add('hidden'); priceDisp.innerText = "--"; forecastDisp.innerText = "--"; return; }
+
+            box.classList.remove('hidden');
+            
+            // Mock Data
+            let price = Math.floor(Math.random() * 200) + 50;
+            let status = 'stable';
+            
+            if(['Pumpkin', 'Tomato', 'Cabbage'].includes(crop)) status = 'surplus';
+            if(['Carrot', 'Beans', 'Leeks'].includes(crop)) status = 'shortage';
+
+            if (status === 'surplus') {
+                box.className = "p-5 rounded-2xl border border-orange-200/50 bg-orange-50/80 backdrop-blur-sm transition-all duration-500 transform translate-y-0";
+                icon.innerHTML = '<i class="fas fa-exclamation-circle text-xl text-orange-600"></i>';
+                title.innerText = "Market Warning: Surplus Detected";
+                title.className = "text-sm font-bold text-orange-800";
+                msg.innerText = "Prices are low due to high supply. Selling raw stock now may result in loss.";
+                msg.className = "text-xs mt-1 leading-relaxed text-orange-800/80 font-medium";
+                document.getElementById('ai-actions').innerHTML = `<button class="bg-white/80 border border-orange-200 text-orange-700 px-3 py-1.5 rounded-lg text-[10px] font-bold shadow-sm hover:bg-orange-100 transition">Contact Processing</button>`;
+                priceDisp.innerText = "Rs " + price;
+                forecastDisp.innerHTML = '<span class="text-red-300 flex items-center gap-1"><i class="fas fa-arrow-down"></i> Dropping</span>';
+            } else if (status === 'shortage') {
+                box.className = "p-5 rounded-2xl border border-green-200/50 bg-green-50/80 backdrop-blur-sm transition-all duration-500 transform translate-y-0";
+                icon.innerHTML = '<i class="fas fa-check-circle text-xl text-green-600"></i>';
+                title.innerText = "Great Timing: High Demand";
+                title.className = "text-sm font-bold text-green-800";
+                msg.innerText = "Shortage detected. You can list at a premium price.";
+                msg.className = "text-xs mt-1 leading-relaxed text-green-800/80 font-medium";
+                document.getElementById('ai-actions').innerHTML = ``;
+                priceDisp.innerText = "Rs " + (price + 50);
+                forecastDisp.innerHTML = '<span class="text-green-300 flex items-center gap-1"><i class="fas fa-arrow-up"></i> Rising</span>';
+            } else {
+                box.className = "p-5 rounded-2xl border border-blue-200/50 bg-blue-50/80 backdrop-blur-sm transition-all duration-500 transform translate-y-0";
+                icon.innerHTML = '<i class="fas fa-info-circle text-xl text-blue-600"></i>';
+                title.innerText = "Market is Stable";
+                title.className = "text-sm font-bold text-blue-800";
+                msg.innerText = "Standard market rates apply. Upload high-quality photos.";
+                document.getElementById('ai-actions').innerHTML = ``;
+                priceDisp.innerText = "Rs " + price;
+                forecastDisp.innerHTML = '<span class="text-blue-200">Stable</span>';
+            }
+        }
+
+        function submitListing() {
+            const photoInput = document.getElementById('sell-photos');
+            const fileCount = photoInput.files.length;
+            
+            if (fileCount < 5) {
+                alert(`Please upload at least 5 photos. You only selected ${fileCount}.`);
+                return;
+            }
+            if (fileCount > 10) {
+                 alert("Maximum 10 photos allowed.");
+                 return;
+            }
+
+            alert("Listing published successfully! Your stock is now visible to national buyers.");
+            closeSellModal();
+        }
+
+        function login(role) {
+            let name = role === 'farmer' ? 'Kamal Perera' : (role === 'admin' ? 'System Admin' : 'Hilton Buyer');
+            currentUser = { role: role, name: name };
+            localStorage.setItem('agriUser', JSON.stringify(currentUser));
+            document.getElementById('auth-modal').classList.add('hidden');
+            checkLogin();
+            if(role === 'admin') {
+                if(confirm("Welcome Admin. Go to Dashboard?")) window.location.href = 'index.html'; // Assuming dashboard is index
+            }
+        }
+
+        function checkLogin() {
+            const saved = localStorage.getItem('agriUser');
+            if (saved) currentUser = JSON.parse(saved);
+            
+            const btn = document.getElementById('auth-btn');
+            if (currentUser) {
+                let icon = currentUser.role === 'admin' ? 'fa-shield-alt' : 'fa-user-check';
+                btn.innerHTML = `<i class="fas ${icon}"></i> <span>${currentUser.name}</span>`;
+                btn.className = "px-6 py-2.5 rounded-full bg-white/90 text-gray-800 text-xs font-bold uppercase tracking-wide border border-white shadow-md hover:shadow-lg transition flex items-center gap-2";
+                btn.onclick = () => { if(confirm('Logout?')) { localStorage.removeItem('agriUser'); location.reload(); }};
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>

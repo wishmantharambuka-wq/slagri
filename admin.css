@@ -1,0 +1,146 @@
+/* --- ADMIN DASHBOARD STYLES --- */
+
+/* 1. Variables */
+:root {
+    --ash-bg: #F3F4F6;
+    --primary-orange: #F97316;
+    --sidebar-bg: #1F2937;
+    --glass-base: rgba(255, 255, 255, 0.75);
+    --glass-border: rgba(255, 255, 255, 0.5);
+}
+
+/* 2. Global Resets & Utilities */
+.custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 10px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+.bg-ash-gradient {
+    background-color: var(--ash-bg);
+    background-image: 
+        radial-gradient(at 0% 0%, rgba(16, 185, 129, 0.05) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(249, 115, 22, 0.05) 0px, transparent 50%);
+    background-size: cover;
+}
+
+/* 3. Auth Overlay Transition */
+#auth-check-overlay {
+    transition: opacity 0.5s ease-out;
+}
+
+/* 4. Glassmorphism Components */
+.glass-sidebar {
+    background: var(--sidebar-bg);
+    backdrop-filter: blur(20px);
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.1);
+}
+
+.glass-header {
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.6);
+}
+
+.glass-card {
+    background: var(--glass-base);
+    backdrop-filter: blur(12px);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.glass-card:hover {
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+}
+
+/* 5. Sidebar Navigation */
+.nav-item.active {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    border-right: 3px solid var(--primary-orange);
+    border-radius: 0.75rem 0 0 0.75rem; 
+}
+
+.nav-item i {
+    opacity: 0.7;
+    transition: opacity 0.2s;
+}
+
+.nav-item:hover i, .nav-item.active i {
+    opacity: 1;
+    color: var(--primary-orange);
+}
+
+/* 6. Table Styles */
+table th {
+    letter-spacing: 0.05em;
+}
+
+table tr:hover td {
+    background-color: rgba(249, 115, 22, 0.03);
+}
+
+/* 7. Animations */
+.fade-in {
+    animation: fadeIn 0.4s ease-out forwards;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* 8. Modal */
+#crud-modal-content {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.modal-open {
+    display: flex;
+}
+
+/* 9. Map & KML Specifics */
+#kml-map {
+    width: 100%;
+    height: 100%;
+    min-height: 400px;
+    z-index: 1;
+}
+
+/* 10. Alerts */
+.alert-item {
+    padding: 1rem;
+    border-radius: 0.75rem;
+    background: rgba(255, 255, 255, 0.6);
+    border: 1px solid rgba(255,255,255,0.8);
+    transition: all 0.2s;
+}
+.alert-item:hover {
+    background: rgba(255, 255, 255, 0.9);
+    transform: translateX(4px);
+}
+.alert-item.critical { border-left: 4px solid #ef4444; }
+.alert-item.warning { border-left: 4px solid #f97316; }
+.alert-item.info { border-left: 4px solid #3b82f6; }
+
+/* 11. Badges */
+.badge {
+    padding: 2px 8px;
+    border-radius: 9999px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+.badge-active { background: #dcfce7; color: #166534; }
+.badge-pending { background: #ffedd5; color: #9a3412; }
+.badge-suspended { background: #fee2e2; color: #991b1b; }

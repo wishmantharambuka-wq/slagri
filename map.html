@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgriFlow - National Intelligence Platform</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- AgriFlow shared data service + API client -->
+    <script src="agri-db.js"></script>
+    <script src="api-client.js"></script>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <!-- FontAwesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        /* --- PREMIUM DESIGN SYSTEM --- */
+        :root {
+            --bg-color: #F3F4F6;
+            --primary-orange: #F97316;
+            --primary-green: #10B981;
+            --glass-bg: rgba(255, 255, 255, 0.85);
+            --glass-border: rgba(255, 255, 255, 0.6);
+        }
+
+        body {
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(16, 185, 129, 0.08) 0px, transparent 50%),
+                radial-gradient(at 100% 0%, rgba(249, 115, 22, 0.08) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(59, 130, 246, 0.08) 0px, transparent 50%);
+            background-attachment: fixed;
+            background-size: cover;
+            font-family: 'Outfit', sans-serif;
+            color: #1F2937;
+        }
+
+        /* Glass Classes */
+        .glass-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            transition: all 0.3s ease;
+        }
+        .glass-card:hover {
+            background: rgba(255, 255, 255, 0.95);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.05);
+        }
+
+        /* Custom Scrollbar */
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+
+        /* Map Styles */
+        #map-container { height: 100%; width: 100%; z-index: 1; border-radius: 1rem; }
+        .leaflet-control-attribution { display: none; }
+        .leaflet-container { font-family: 'Outfit', sans-serif; }
+
+        /* --- MARKER ANIMATIONS --- */
+        .marker-pulse {
+            border-radius: 50%;
+            border: 2px solid white;
+            box-shadow: 0 0 10px rgba(0,0,0,0.2);
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(var(--rgb), 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(var(--rgb), 0); }
+            100% { box-shadow: 0 0 0 0 rgba(var(--rgb), 0); }
+        }
+
+        /* Transport Line Animation */
+        .transport-line {
+            stroke-dasharray: 10, 10;
+            animation: dash 30s linear infinite;
+        }
+        @keyframes dash { to { stroke-dashoffset: -1000; } }
+
+        /* Popups */
+        .custom-popup .leaflet-popup-content-wrapper { 
+            background: rgba(255, 255, 255, 0.95); 
+            backdrop-filter: blur(10px); 
+            border-radius: 16px; 
+            padding: 0; 
+            box-shadow: 0 20px 40px rgba(0,0,0,0.15); 
+            border: 1px solid white;
+        }
+        .custom-popup .leaflet-popup-content { margin: 0; width: 300px !important; }
+        .custom-popup .leaflet-popup-tip { background: rgba(255, 255, 255, 0.95); }
+
+        /* Controls */
+        .layer-btn { transition: all 0.2s; }
+        .layer-btn.active { background: #1F2937; color: white; transform: scale(1.05); box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+        
+        .forecast-btn { color: #6B7280; }
+        .forecast-btn.active { background: #000000; color: white; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3); }
+
+        /* Sidebar Tabs */
+        .sidebar-tab { transition: all 0.2s; cursor: pointer; border-bottom: 2px solid transparent; }
+        .sidebar-tab.active { border-bottom-color: #F97316; color: #F97316; font-weight: 700; }
+        .sidebar-tab:hover:not(.active) { color: #4B5563; }
+
+        /* Tree Styles (Region Explorer) */
+        .tree-item { transition: all 0.2s; cursor: pointer; border-left: 3px solid transparent; }
+        .tree-item:hover { background-color: rgba(255,255,255,0.5); }
+        .tree-item[data-level="province"] { font-weight: 700; background-color: rgba(255,255,255,0.4); margin-bottom: 2px; padding: 10px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.6); }
+        .tree-item[data-level="district"] { padding: 6px 8px 6px 24px; font-size: 0.8rem; font-weight: 600; color: #4B5563; border-left: 1px solid rgba(0,0,0,0.05); }
+        .tree-item[data-level="dsd"] { padding: 4px 8px 4px 36px; font-size: 0.75rem; color: #6B7280; border-left: 1px solid rgba(0,0,0,0.05); }
+        .tree-item.selected { background-color: white !important; border-left-color: var(--primary-orange) !important; color: var(--primary-orange) !important; box-shadow: 0 2px 8px rgba(249, 115, 22, 0.1); }
+        
+        .collapsible-content { max-height: 0; overflow: hidden; opacity: 0; transition: max-height 0.35s ease-out, opacity 0.35s ease-out; }
+        .collapsible-content.open { max-height: 1000px; opacity: 1; }
+        .chevron-icon { transition: transform 0.3s ease; }
+        .chevron-icon.rotated { transform: rotate(90deg); color: var(--primary-orange); }
+
+        /* Alert Toast */
+        .alert-toast { animation: slideIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+        /* AI Analysis Typing Effect */
+        .typing-cursor::after { content: '|'; animation: blink 1s infinite; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden text-gray-800">
+
+    <!-- 1. NAVIGATION -->
+    <nav class="glass-panel sticky top-0 z-50 px-6 py-3 shadow-sm flex-shrink-0">
+        <div class="max-w-full mx-auto flex justify-between items-center">
+            <a href="index.html" class="flex items-center gap-2 cursor-pointer group">
+                <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-green-500 to-green-700 flex items-center justify-center text-white shadow-lg transform group-hover:rotate-12 transition">
+                    <i class="fas fa-seedling"></i>
+                </div>
+                <div class="flex flex-col">
+                    <span class="text-lg font-extrabold tracking-tight text-gray-900 leading-none">Agri<span class="text-orange-500">Flow</span></span>
+                    <span class="text-[9px] text-gray-500 font-bold tracking-wider uppercase">National Intelligence</span>
+                </div>
+            </a>
+            
+            <div class="hidden md:flex bg-gray-100/50 p-1 rounded-full backdrop-blur-md border border-white/50">
+                <a href="index.html" class="nav-link px-4 py-1.5 rounded-full text-xs font-medium text-gray-500 hover:bg-white hover:text-orange-500 transition">Dashboard</a>
+                <a href="map.html" class="nav-link px-4 py-1.5 rounded-full text-xs font-bold bg-white text-orange-600 shadow-sm">Map & Intelligence</a>
+                <a href="marketplace.html" class="nav-link px-4 py-1.5 rounded-full text-xs font-medium text-gray-500 hover:bg-white hover:text-orange-500 transition">Marketplace</a>
+                <a href="farmer.html" class="nav-link px-4 py-1.5 rounded-full text-xs font-medium text-gray-500 hover:bg-white hover:text-orange-500 transition">Farmer Zone</a>
+            </div>
+
+            <div class="flex items-center gap-3">
+                <div class="relative group">
+                    <button class="w-9 h-9 rounded-full bg-red-50 text-red-500 flex items-center justify-center relative hover:bg-red-100 transition">
+                        <i class="fas fa-bell"></i>
+                        <span class="absolute top-0 right-0 w-3 h-3 bg-red-600 border-2 border-white rounded-full animate-pulse"></span>
+                    </button>
+                    <!-- Alerts Dropdown -->
+                    <div class="hidden group-hover:block absolute right-0 top-full mt-2 w-72 bg-white/95 backdrop-blur-xl rounded-xl shadow-2xl border border-gray-100 p-3 z-50">
+                        <h4 class="text-[10px] font-bold text-gray-400 uppercase mb-2">Active Alerts</h4>
+                        <div id="nav-alerts-list" class="space-y-2 max-h-60 overflow-y-auto custom-scrollbar"></div>
+                    </div>
+                </div>
+                <button id="auth-btn" onclick="openLoginModal()" class="w-9 h-9 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center hover:bg-gray-200 transition">
+                    <i class="fas fa-user"></i>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 2. MAIN LAYOUT -->
+    <div class="flex-grow flex flex-col lg:flex-row overflow-hidden p-4 gap-4 relative">
+        
+        <!-- LEFT PANEL: LAYERS & FILTERS -->
+        <div class="w-full lg:w-72 glass-panel rounded-2xl flex flex-col flex-shrink-0 h-full overflow-hidden z-20">
+            
+            <!-- TABS -->
+            <div class="flex border-b border-gray-200 bg-white/30 px-2 pt-2">
+                <div onclick="switchSidebarTab('layers')" id="tab-layers" class="sidebar-tab active flex-1 text-center py-2 text-xs font-bold uppercase tracking-wide text-gray-500 pb-2">Layers</div>
+                <div onclick="switchSidebarTab('regions')" id="tab-regions" class="sidebar-tab flex-1 text-center py-2 text-xs font-bold uppercase tracking-wide text-gray-500 pb-2">Regions</div>
+            </div>
+
+            <!-- TAB CONTENT: LAYERS -->
+            <div id="panel-layers" class="flex flex-col flex-grow overflow-hidden">
+                <div class="p-4 border-b border-gray-200 bg-white/30">
+                    <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">Intelligence Overlays</h3>
+                    <div class="space-y-2">
+                        <button onclick="switchLayer('market')" id="btn-market" class="layer-btn active w-full text-left px-4 py-3 rounded-xl border border-gray-200/50 flex items-center gap-3 bg-white">
+                            <div class="w-8 h-8 rounded-lg bg-green-100 text-green-600 flex items-center justify-center"><i class="fas fa-chart-pie"></i></div>
+                            <div>
+                                <div class="text-xs font-bold text-gray-800">Market Status</div>
+                                <div class="text-[9px] text-gray-500">Surplus / Shortage</div>
+                            </div>
+                        </button>
+                        <button onclick="switchLayer('climate')" id="btn-climate" class="layer-btn w-full text-left px-4 py-3 rounded-xl border border-transparent hover:bg-white/60 flex items-center gap-3 text-gray-600">
+                            <div class="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center"><i class="fas fa-cloud-showers-heavy"></i></div>
+                            <div>
+                                <div class="text-xs font-bold">Climate Risk</div>
+                                <div class="text-[9px] opacity-70">Flood / Drought</div>
+                            </div>
+                        </button>
+                        <button onclick="switchLayer('suitability')" id="btn-suitability" class="layer-btn w-full text-left px-4 py-3 rounded-xl border border-transparent hover:bg-white/60 flex items-center gap-3 text-gray-600">
+                            <div class="w-8 h-8 rounded-lg bg-yellow-100 text-yellow-600 flex items-center justify-center"><i class="fas fa-layer-group"></i></div>
+                            <div>
+                                <div class="text-xs font-bold">Land Suitability</div>
+                                <div class="text-[9px] opacity-70">Soil / Water / Elev</div>
+                            </div>
+                        </button>
+                        <button onclick="switchLayer('movement')" id="btn-movement" class="layer-btn w-full text-left px-4 py-3 rounded-xl border border-transparent hover:bg-white/60 flex items-center gap-3 text-gray-600">
+                            <div class="w-8 h-8 rounded-lg bg-purple-100 text-purple-600 flex items-center justify-center"><i class="fas fa-truck-moving"></i></div>
+                            <div>
+                                <div class="text-xs font-bold">National Plan</div>
+                                <div class="text-[9px] opacity-70">Transport Logic</div>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="flex-grow p-4 overflow-y-auto custom-scrollbar">
+                    <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">Crop Filter</h3>
+                    <div id="crop-list" class="space-y-1">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB CONTENT: REGIONS (Hidden by default) -->
+            <div id="panel-regions" class="hidden flex flex-col flex-grow overflow-hidden">
+                <div class="p-4 border-b border-gray-200 bg-white/30 flex justify-between items-center">
+                    <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider">Region Explorer</h3>
+                    <span class="text-[9px] text-gray-400 bg-white px-2 py-0.5 rounded border cursor-pointer hover:bg-gray-50" onclick="resetToNational()">Reset</span>
+                </div>
+                <div class="flex-grow overflow-y-auto custom-scrollbar p-3 space-y-1" id="hierarchy-list">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- CENTER PANEL: MAP -->
+        <div class="flex-grow glass-panel rounded-2xl relative overflow-hidden flex flex-col shadow-xl">
+            
+            <!-- TOP FLOATING CONTROLS -->
+            <div class="absolute top-4 left-4 z-[1000] flex flex-row items-start gap-2">
+                <!-- Crop Selector Dropdown -->
+                <div class="relative">
+                    <button onclick="toggleCropDropdown()" class="bg-white/80 backdrop-blur-md px-4 py-2 rounded-xl border border-white shadow-sm h-[68px] flex flex-col justify-center min-w-[160px] text-left hover:bg-white transition-colors w-full">
+                        <span class="text-[10px] font-bold text-gray-400 uppercase block">Selected Crop</span>
+                        <div class="flex items-center justify-between gap-2 mt-1 w-full">
+                            <span class="text-lg font-extrabold text-gray-800" id="map-crop-label">Paddy</span>
+                            <i class="fas fa-chevron-down text-xs text-gray-400"></i>
+                        </div>
+                    </button>
+                    
+                    <!-- Hidden Dropdown Menu -->
+                    <div id="crop-dropdown-menu" class="hidden absolute top-[72px] left-0 w-full bg-white/95 backdrop-blur-xl rounded-xl shadow-2xl border border-gray-100 p-2 z-[1001] max-h-60 overflow-y-auto custom-scrollbar">
+                        <!-- Populated via JS -->
+                    </div>
+                </div>
+
+                <!-- Forecast Horizon Controls -->
+                <div class="bg-white/80 backdrop-blur-md px-3 py-2 rounded-xl border border-white shadow-sm h-[68px] flex flex-col justify-center">
+                    <span class="text-[10px] font-bold text-gray-400 uppercase block mb-1.5">AI Forecast Horizon</span>
+                    <div class="flex gap-1 bg-gray-100/50 p-1 rounded-lg">
+                        <button onclick="setForecast(0)" id="fc-0" class="forecast-btn active flex-1 px-3 py-1.5 rounded-md text-[10px] font-bold uppercase transition hover:bg-white text-center">Now</button>
+                        <button onclick="setForecast(1)" id="fc-1" class="forecast-btn flex-1 px-3 py-1.5 rounded-md text-[10px] font-bold uppercase transition hover:bg-white text-center">+1M</button>
+                        <button onclick="setForecast(2)" id="fc-2" class="forecast-btn flex-1 px-3 py-1.5 rounded-md text-[10px] font-bold uppercase transition hover:bg-white text-center">+2M</button>
+                        <button onclick="setForecast(3)" id="fc-3" class="forecast-btn flex-1 px-3 py-1.5 rounded-md text-[10px] font-bold uppercase transition hover:bg-white text-center">+3M</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="absolute top-4 right-4 z-[1000] flex gap-2">
+                <div class="bg-white/80 backdrop-blur-md px-3 py-1.5 rounded-lg border border-white shadow-sm flex items-center gap-2">
+                    <span data-backend-status=""
+                          class="text-[10px] font-bold text-gray-500">Connecting...</span>
+                </div>
+            </div>
+
+            <!-- MAP CONTAINER -->
+            <div id="map-container" class="w-full h-full bg-slate-100"></div>
+
+            <!-- DYNAMIC LEGEND -->
+            <div class="absolute bottom-6 right-6 z-[1000] bg-white/90 backdrop-blur-xl p-4 rounded-2xl shadow-2xl border border-white/50 w-56 transform transition-all hover:scale-105">
+                <div id="legend-content"></div>
+            </div>
+
+            <!-- ALERTS CONTAINER (Floating) -->
+            <div id="alerts-container" class="absolute bottom-6 left-6 z-[1000] flex flex-col gap-2 max-w-sm"></div>
+        </div>
+
+        <!-- RIGHT PANEL: DETAILS (Sliding Logic) -->
+        <div class="w-full lg:w-80 glass-panel rounded-2xl hidden lg:flex flex-col flex-shrink-0 h-full overflow-hidden border-l-0">
+             <div class="p-5 border-b border-gray-200 bg-white/40">
+                <h2 class="text-lg font-extrabold text-gray-800">Insights</h2>
+                <p class="text-[10px] text-gray-500 font-medium">AI-Driven Regional Analysis</p>
+            </div>
+            <div class="p-5 overflow-y-auto custom-scrollbar flex-grow space-y-4" id="right-panel-content">
+                <div class="text-center py-10 opacity-50">
+                    <i class="fas fa-map-marked-alt text-4xl mb-3 text-gray-300"></i>
+                    <p class="text-xs text-gray-400">Select a district on the map<br>to view detailed intelligence.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- AgriFlow map upgrades: real data + GeoJSON choropleth -->
+    <script src="map-patch.js"></script>
+
+    <script>
+        // --- AUTH ---
+        let currentUser = null;
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedUser = localStorage.getItem('agriFlowUser');
+            if (savedUser) { currentUser = JSON.parse(savedUser); updateAuthUI(); }
+        });
+        function updateAuthUI() {
+            const btn = document.getElementById('auth-btn');
+            if (currentUser) {
+                let icon = 'fa-user'; let color = 'text-blue-600'; let bg = 'bg-blue-50';
+                if (currentUser.role === 'farmer') { icon = 'fa-tractor'; color = 'text-orange-600'; bg = 'bg-orange-50'; }
+                if (currentUser.role === 'admin') { icon = 'fa-user-shield'; color = 'text-red-600'; bg = 'bg-red-50'; }
+                btn.innerHTML = `<i class="fas ${icon} ${color}"></i> <span class="${color}">${currentUser.name}</span>`;
+                btn.className = `px-5 py-2 rounded-full ${bg} text-xs font-bold uppercase tracking-wide border border-gray-200 flex items-center gap-2`;
+                btn.onclick = logout;
+            } else {
+                btn.innerHTML = `<i class="fas fa-user-circle text-lg"></i> <span>Login</span>`;
+                btn.className = `px-5 py-2 rounded-full bg-white/80 text-blue-600 text-xs font-bold uppercase tracking-wide hover:bg-white hover:shadow-md transition border border-blue-100 flex items-center gap-2`;
+                btn.onclick = () => openLoginModal();
+            }
+        }
+        function logout() { if(confirm("Are you sure you want to logout?")) { localStorage.removeItem('agriFlowUser'); currentUser = null; updateAuthUI(); window.location.reload(); } }
+        function openLoginModal(targetRole = null) { const modal = document.getElementById('auth-modal'); const content = document.getElementById('auth-modal-content'); modal.classList.remove('hidden'); modal.classList.add('flex'); setTimeout(() => { content.classList.remove('scale-95', 'opacity-0'); content.classList.add('scale-100', 'opacity-100'); }, 10); if (targetRole) { selectRole(targetRole); } else { resetModal(); } }
+        function closeLoginModal() { const modal = document.getElementById('auth-modal'); const content = document.getElementById('auth-modal-content'); content.classList.remove('scale-100', 'opacity-100'); content.classList.add('scale-95', 'opacity-0'); setTimeout(() => { modal.classList.add('hidden'); modal.classList.remove('flex'); }, 300); }
+        function resetModal() { document.getElementById('step-role').classList.remove('hidden'); document.getElementById('step-farmer').classList.add('hidden'); document.getElementById('step-customer').classList.add('hidden'); document.getElementById('step-admin').classList.add('hidden'); document.getElementById('modal-title').innerText = "Login to AgriFlow"; }
+        function selectRole(role) { document.getElementById('step-role').classList.add('hidden'); if (role === 'farmer') { document.getElementById('step-farmer').classList.remove('hidden'); document.getElementById('modal-title').innerText = "Farmer Registration"; } else if (role === 'customer') { document.getElementById('step-customer').classList.remove('hidden'); document.getElementById('modal-title').innerText = "Customer Registration"; } else if (role === 'admin') { document.getElementById('step-admin').classList.remove('hidden'); document.getElementById('modal-title').innerText = "Admin Access"; } }
+        function handleLogin(role) { let name = ""; if (role === 'admin') { const u = document.getElementById('a-user').value; const p = document.getElementById('a-pass').value; if (u === 'admin' && p === 'admin123') { name = "Administrator"; } else { alert("Invalid Credentials!"); return; } } else { const nameInput = role === 'farmer' ? document.getElementById('f-name') : document.getElementById('c-name'); name = nameInput.value || (role === 'farmer' ? "Kamal Perera" : "Nimali Silva"); } currentUser = { role: role, name: name }; localStorage.setItem('agriFlowUser', JSON.stringify(currentUser)); if (window.API) { const creds = role === 'admin' ? { username: document.getElementById('a-user')?.value, password: document.getElementById('a-pass')?.value } : { role, name }; API.auth.login(creds); } else if (window.AgriDB) { AgriDB.saveUser(currentUser); } updateAuthUI(); closeLoginModal(); if(role === 'admin') { window.location.href = 'admin.html'; } else { alert(`Logged in as ${role.toUpperCase()}`); } }
+
+        // --- CONFIG & STATE ---
+        const mapConfig = { center: [7.8731, 80.7718], zoom: 7.5 };
+        let map;
+        let currentLayerType = 'market'; 
+        let selectedCrop = "Paddy";
+        let currentHorizon = 0; // 0 = Now, 1 = +1M, etc.
+        let layerGroup = L.layerGroup();
+        let movementLayerGroup = L.layerGroup(); 
+        let currentSelectedDistrict = null; // Store currently selected district data
+        
+        // --- HELPER: DSD GENERATOR ---
+        function genDSDs(list) {
+            let obj = {};
+            list.forEach(name => {
+                let id = name.toLowerCase().replace(/\s+/g, '_').replace(/&/g,'').replace(/\./g,'').replace(/\//g,'');
+                obj[id] = { id: id, name: name, type: 'DSD' };
+            });
+            return obj;
+        }
+
+        // --- DATA: SRI LANKA HIERARCHY ---
+        const provincesData = {
+            'western': { id: 'western', name: 'Western', coords: [6.9, 80.0], districts: { 'colombo': {name:'Colombo', coords:[6.927, 79.861], dsds: genDSDs(['Colombo','Thimbirigasyaya','Ratmalana','Moratuwa','Dehiwala','Kotte','Kaduwela','Homagama','Maharagama','Padukka','Kesbewa'])}, 'gampaha': {name:'Gampaha', coords:[7.08, 79.99], dsds: genDSDs(['Gampaha','Negombo','Katana','Minuwangoda','Divulapitiya','Mirigama','Attanagalla','Dompe','Biyagama','Wattala','Ja-Ela'])}, 'kalutara': {name:'Kalutara', coords:[6.58, 79.96], dsds: genDSDs(['Kalutara','Beruwala','Dodangoda','Matugama','Agalawatta','Bulathsinhala','Ingiriya','Bandaragama','Horana','Panadura'])} } },
+            'central': { id: 'central', name: 'Central', coords: [7.2, 80.6], districts: { 'kandy': {name:'Kandy', coords:[7.29, 80.63], dsds: genDSDs(['Kandy','Kundasale','Harispattuwa','Akurana','Pathahewaheta','Udunuwara','Yatinuwara','Delthota'])}, 'nuwara_eliya': {name:'Nuwara Eliya', coords:[6.97, 80.77], dsds: genDSDs(['Nuwara Eliya','Kothmale','Hanguranketha','Walapane','Ambagamuwa'])}, 'matale': {name:'Matale', coords:[7.46, 80.62], dsds: genDSDs(['Matale','Ukuwela','Rattota','Dambulla','Galewela','Naula'])} } },
+            'southern': { id: 'southern', name: 'Southern', coords: [6.05, 80.22], districts: { 'galle': {name:'Galle', coords:[6.05, 80.22], dsds: genDSDs(['Galle','Habaraduwa','Baddegama','Hikkaduwa','Ambalangoda','Elpitiya','Bentota'])}, 'matara': {name:'Matara', coords:[5.95, 80.55], dsds: genDSDs(['Matara','Devinuwara','Dickwella','Weligama','Akuressa','Kamburupitiya'])}, 'hambantota': {name:'Hambantota', coords:[6.14, 81.12], dsds: genDSDs(['Hambantota','Ambalantota','Tangalle','Beliatta','Tissamaharama','Lunugamvehera'])} } },
+            'northern': { id: 'northern', name: 'Northern', coords: [9.66, 80.02], districts: { 'jaffna': {name:'Jaffna', coords:[9.66, 80.02], dsds: genDSDs(['Jaffna','Nallur','Chavakachcheri','Point Pedro'])}, 'kilinochchi': {name:'Kilinochchi', coords:[9.38, 80.41], dsds: genDSDs(['Karachchi','Poonakary'])}, 'mannar': {name:'Mannar', coords:[8.97, 79.90], dsds: genDSDs(['Mannar','Nanattan','Musali'])}, 'vavuniya': {name:'Vavuniya', coords:[8.75, 80.49], dsds: genDSDs(['Vavuniya','Vavuniya North'])}, 'mullaitivu': {name:'Mullaitivu', coords:[9.26, 80.81], dsds: genDSDs(['Puthukudiyiruppu','Oddusuddan'])} } },
+            'eastern': { id: 'eastern', name: 'Eastern', coords: [7.87, 81.5], districts: { 'batticaloa': {name:'Batticaloa', coords:[7.73, 81.67], dsds: genDSDs(['Batticaloa','Kattankudy','Eravur'])}, 'ampara': {name:'Ampara', coords:[7.28, 81.67], dsds: genDSDs(['Ampara','Kalmunai','Sammanthurai','Akkaraipattu'])}, 'trincomalee': {name:'Trincomalee', coords:[8.58, 81.21], dsds: genDSDs(['Trincomalee','Kinniya','Muttur'])} } },
+            'north_central': { id: 'north_central', name: 'North Central', coords: [8.3, 80.4], districts: { 'anuradhapura': {name:'Anuradhapura', coords:[8.31, 80.40], dsds: genDSDs(['Anuradhapura','Thambuttegama','Kekirawa','Mihinthale'])}, 'polonnaruwa': {name:'Polonnaruwa', coords:[7.94, 81.01], dsds: genDSDs(['Polonnaruwa','Hingurakgoda','Medirigiriya'])} } },
+            'uva': { id: 'uva', name: 'Uva', coords: [6.98, 81.05], districts: { 'badulla': {name:'Badulla', coords:[6.98, 81.05], dsds: genDSDs(['Badulla','Bandarawela','Haputale','Welimada'])}, 'monaragala': {name:'Monaragala', coords:[6.89, 81.34], dsds: genDSDs(['Monaragala','Wellawaya','Buttala','Kataragama'])} } },
+            'sabaragamuwa': { id: 'sabaragamuwa', name: 'Sabaragamuwa', coords: [6.7, 80.4], districts: { 'ratnapura': {name:'Ratnapura', coords:[6.68, 80.39], dsds: genDSDs(['Ratnapura','Balangoda','Embilipitiya'])}, 'kegalle': {name:'Kegalle', coords:[7.12, 80.32], dsds: genDSDs(['Kegalle','Mawanella','Warakapola'])} } },
+            'north_western': { id: 'north_western', name: 'North Western', coords: [7.7, 80.0], districts: { 'kurunegala': {name:'Kurunegala', coords:[7.48, 80.36], dsds: genDSDs(['Kurunegala','Kuliyapitiya','Nikaweratiya','Wariyapola'])}, 'puttalam': {name:'Puttalam', coords:[8.04, 79.83], dsds: genDSDs(['Puttalam','Chilaw','Wennappuwa'])} } }
+        };
+
+        const cropTypes = [
+            "Paddy", "Maize", "Tea", "Rubber", "Coconut", "Vegetables", "Fruits", 
+            "Spices", "Cinnamon", "Pepper", "Cardamom", "Cloves", 
+            "Sugarcane", "Cashew", "Betel", "Arecanut", 
+            "Manioc", "Potato", "Big Onion", "Red Onion", "Chili", 
+            "Green Gram", "Cowpea", "Soybean", "Kurakkan", "Gingelly"
+        ];
+
+        // --- MOCK DATA FOR LAYERS ---
+        // Flatten province data to get district list for layer generation
+        let districtsList = [];
+        Object.values(provincesData).forEach(p => {
+            Object.values(p.districts).forEach(d => {
+                districtsList.push({name: d.name, coords: d.coords});
+            });
+        });
+
+        function generateDistrictData(district, crop, horizon) {
+            const seed = district.name.length + crop.length;
+            const isMajor = ["Polonnaruwa", "Ampara", "Anuradhapura", "Kurunegala", "Hambantota"].includes(district.name) && crop === "Paddy" ||
+                            ["Nuwara Eliya", "Badulla"].includes(district.name) && crop === "Vegetables";
+
+            const cultivatedArea = isMajor ? Math.floor(Math.random() * 50000 + 20000) : Math.floor(Math.random() * 5000 + 1000);
+            const yieldPerHa = 4 + (Math.random() * 2); 
+            
+            // Forecast Logic: Simulate seasonal change
+            // 0: Normal
+            // 1 (+1M): Growing season (Slight surplus increase)
+            // 2 (+2M): Peak Harvest (High Surplus)
+            // 3 (+3M): Post Harvest / Lean (Shortage risk)
+            let trendFactor = 1.0;
+            if(horizon === 1) trendFactor = 1.1;
+            else if(horizon === 2) trendFactor = 1.3;
+            else if(horizon === 3) trendFactor = 0.8;
+
+            // Random noise per district to make it realistic
+            const noise = (Math.random() * 0.4 - 0.2); // +/- 20%
+            const harvest = Math.floor((cultivatedArea * yieldPerHa) * (trendFactor + noise));
+            
+            const consumption = Math.floor(Math.random() * 20000 + 5000);
+            
+            const surplus = harvest - consumption;
+            const status = surplus > 5000 ? 'Surplus' : (surplus < -2000 ? 'Shortage' : 'Balanced');
+            
+            const riskScore = Math.floor(Math.random() * 100);
+            const soilType = ["Reddish Brown", "Alluvial", "Sandy", "Clay"][Math.floor(Math.random() * 4)];
+            const suitabilityScore = Math.floor(Math.random() * 50 + 50);
+
+            return {
+                ...district,
+                cultivatedArea,
+                harvest,
+                consumption,
+                surplus,
+                status,
+                risk: { flood: Math.random() > 0.8, drought: Math.random() > 0.8, score: riskScore },
+                suitability: { soil: soilType, water: Math.floor(Math.random() * 100), elevation: Math.floor(Math.random() * 2000), score: suitabilityScore },
+                price: { current: Math.floor(Math.random() * 100 + 50), trend: Math.random() > 0.5 ? 'up' : 'down' }
+            };
+        }
+
+        let fullData = []; 
+
+        // --- INITIALIZATION ---
+        function init() {
+            map = L.map('map-container', { zoomControl: false, attributionControl: false }).setView(mapConfig.center, mapConfig.zoom);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { subdomains: 'abcd', maxZoom: 19 }).addTo(map);
+            L.control.zoom({ position: 'bottomright' }).addTo(map);
+            
+            layerGroup.addTo(map);
+            movementLayerGroup.addTo(map);
+
+            renderCropList();
+            renderTopCropDropdown(); // Render the new top dropdown
+            renderSidebar(); // Regions Tree
+            refreshMapData();
+            addAlert("⚠️ Heavy rains expected in Polonnaruwa district next 24h.");
+            addAlert("📉 Tomato prices dropping in Dambulla due to oversupply.");
+
+            // Global click to close dropdowns
+            document.addEventListener('click', function(event) {
+                const dropdown = document.getElementById('crop-dropdown-menu');
+                const button = event.target.closest('button[onclick="toggleCropDropdown()"]');
+                if (!button && !dropdown.contains(event.target) && !dropdown.classList.contains('hidden')) {
+                    dropdown.classList.add('hidden');
+                }
+            });
+        }
+
+        // --- SIDEBAR TABS LOGIC ---
+        function switchSidebarTab(tab) {
+            // UI Styling
+            document.querySelectorAll('.sidebar-tab').forEach(t => t.classList.remove('active'));
+            document.getElementById(`tab-${tab}`).classList.add('active');
+
+            // Content Visibility
+            document.getElementById('panel-layers').classList.add('hidden');
+            document.getElementById('panel-regions').classList.add('hidden');
+            document.getElementById(`panel-${tab}`).classList.remove('hidden');
+        }
+
+        // --- REGION EXPLORER LOGIC ---
+        function renderSidebar() {
+            const container = document.getElementById('hierarchy-list');
+            container.innerHTML = '';
+            
+            Object.values(provincesData).forEach(prov => {
+                const pNode = createTreeNode(prov.name, 'province', prov.id);
+                pNode.onclick = (e) => { e.stopPropagation(); toggleProvince(prov.id); };
+                container.appendChild(pNode);
+
+                const distCont = document.createElement('div');
+                distCont.id = `c-${prov.id}`; 
+                distCont.className = 'collapsible-content';
+                container.appendChild(distCont);
+                
+                if(prov.districts) {
+                    Object.entries(prov.districts).forEach(([distKey, distData]) => {
+                        const uniqueDistId = `${prov.id}-${distKey}`;
+                        distData.id = uniqueDistId; 
+
+                        const dNode = createTreeNode(distData.name, 'district', uniqueDistId);
+                        dNode.onclick = (e) => { e.stopPropagation(); toggleDistrict(distData, uniqueDistId); };
+                        distCont.appendChild(dNode);
+
+                        const dsdCont = document.createElement('div');
+                        dsdCont.id = `c-${uniqueDistId}`;
+                        dsdCont.className = 'collapsible-content';
+                        distCont.appendChild(dsdCont);
+
+                        if (distData.dsds) {
+                            Object.values(distData.dsds).forEach(dsd => {
+                                const dsdId = `${uniqueDistId}-${dsd.id}`;
+                                const dsdNode = createTreeNode(dsd.name, 'dsd', dsdId);
+                                dsdNode.onclick = (e) => { e.stopPropagation(); selectDSD(dsd, dsdId); };
+                                dsdCont.appendChild(dsdNode);
+                            });
+                        }
+                    });
+                }
+            });
+        }
+        
+        function createTreeNode(lbl, type, id) {
+            const d = document.createElement('div');
+            d.className = `tree-item flex items-center justify-between`;
+            d.setAttribute('data-level', type);
+            d.id = `node-${id}`; 
+            const iconHTML = type !== 'dsd' 
+                ? `<i class="fas fa-chevron-right text-gray-400 text-[10px] chevron-icon" id="icon-${id}"></i>`
+                : `<i class="fas fa-map-pin text-orange-300 text-[10px]" id="icon-${id}"></i>`;
+            d.innerHTML = `<span>${lbl}</span>${iconHTML}`;
+            return d;
+        }
+
+        function toggleProvince(id) {
+            document.querySelectorAll('.collapsible-content').forEach(c => {
+                if (c.id !== `c-${id}` && !c.id.includes('-')) c.classList.remove('open');
+            });
+            document.querySelectorAll('.chevron-icon').forEach(i => {
+                 if (i.id !== `icon-${id}` && !i.id.includes('-')) i.classList.remove('rotated');
+            });
+            toggleContainer(id);
+        }
+
+        function toggleDistrict(data, id) {
+             toggleContainer(id);
+             highlightNode(`node-${id}`);
+             
+             // MAP INTERACTION
+             if(map && data.coords) {
+                 map.flyTo(data.coords, 10, { duration: 1.5 });
+                 // Find and trigger the marker for this district
+                 const dData = fullData.find(d => d.name === data.name);
+                 if(dData) showDistrictDetails(dData);
+             }
+        }
+
+        function toggleContainer(id) {
+            const content = document.getElementById(`c-${id}`);
+            const icon = document.getElementById(`icon-${id}`);
+            if (content) {
+                const isOpen = content.classList.contains('open');
+                if (!isOpen) {
+                    content.classList.add('open');
+                    if(icon) icon.classList.add('rotated');
+                } else {
+                    content.classList.remove('open');
+                    if(icon) icon.classList.remove('rotated');
+                }
+            }
+        }
+
+        function selectDSD(data, id) {
+            highlightNode(`node-${id}`);
+        }
+
+        function highlightNode(id) {
+            document.querySelectorAll('.tree-item').forEach(el => el.classList.remove('selected'));
+            const target = document.getElementById(id);
+            if(target) {
+                target.classList.add('selected');
+                target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+
+        function resetToNational() {
+            document.querySelectorAll('.tree-item').forEach(el => el.classList.remove('selected'));
+            map.flyTo(mapConfig.center, mapConfig.zoom, { duration: 1.2 });
+            currentSelectedDistrict = null;
+            // Clear Insights
+            document.getElementById('right-panel-content').innerHTML = `
+                <div class="text-center py-10 opacity-50">
+                    <i class="fas fa-map-marked-alt text-4xl mb-3 text-gray-300"></i>
+                    <p class="text-xs text-gray-400">Select a district on the map<br>to view detailed intelligence.</p>
+                </div>`;
+        }
+
+        // --- RENDERING LAYERS & MAP ---
+        function refreshMapData() {
+            fullData = districtsList.map(d => generateDistrictData(d, selectedCrop, currentHorizon));
+            renderLayer();
+            updateLegend();
+            
+            // If a district is currently selected, refresh its details with the new data
+            if(currentSelectedDistrict) {
+                const newData = fullData.find(d => d.name === currentSelectedDistrict.name);
+                if(newData) showDistrictDetails(newData);
+            }
+        }
+
+        function setForecast(months) {
+            currentHorizon = months;
+            // UI Update
+            document.querySelectorAll('.forecast-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(`fc-${months}`).classList.add('active');
+            // Pre-warm the API forecast cache for this horizon so generateDistrictData
+            // can serve real data immediately on the next renderLayer call.
+            if (window.warmForecastCache) window.warmForecastCache(selectedCrop, months);
+            // Logic Update
+            refreshMapData();
+            addAlert(`Forecast horizon updated to: ${months === 0 ? 'Current' : '+' + months + ' Months'}`);
+        }
+
+        function switchLayer(type) {
+            currentLayerType = type;
+            document.querySelectorAll('.layer-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(`btn-${type}`).classList.add('active');
+            renderLayer();
+            updateLegend();
+            addAlert(`Switched to ${type.charAt(0).toUpperCase() + type.slice(1)} view.`);
+        }
+
+        function renderLayer() {
+            layerGroup.clearLayers();
+            movementLayerGroup.clearLayers();
+
+            fullData.forEach(data => {
+                let color, radius, opacity, className = '';
+                
+                if (currentLayerType === 'market' || currentLayerType === 'movement') {
+                    if (data.status === 'Surplus') { color = '#10B981'; radius = 10 + (data.surplus/5000); } 
+                    else if (data.status === 'Shortage') { color = '#EF4444'; radius = 10 + (Math.abs(data.surplus)/2000); } 
+                    else { color = '#F59E0B'; radius = 8; }
+                    if (data.status === 'Shortage' || data.status === 'Surplus') className = 'marker-pulse';
+                }
+                else if (currentLayerType === 'climate') {
+                    if (data.risk.flood) { color = '#3B82F6'; radius = 16; } 
+                    else if (data.risk.drought) { color = '#F97316'; radius = 16; } 
+                    else { color = '#9CA3AF'; radius = 6; opacity = 0.5; }
+                }
+                else if (currentLayerType === 'suitability') {
+                    const score = data.suitability.score;
+                    radius = 12;
+                    color = score > 80 ? '#059669' : (score > 50 ? '#D97706' : '#DC2626');
+                }
+
+                const rgb = hexToRgb(color);
+                const markerHtml = `
+                    <div class="${className}" style="
+                        background-color: ${color}; width: ${radius*2}px; height: ${radius*2}px; 
+                        border-radius: 50%; border: 2px solid white; --rgb: ${rgb}; opacity: 0.9;
+                        display: flex; justify-content: center; align-items: center; box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+                    ">
+                        ${currentLayerType === 'climate' && data.risk.flood ? '<i class="fas fa-water text-white text-[10px]"></i>' : ''}
+                        ${currentLayerType === 'climate' && data.risk.drought ? '<i class="fas fa-sun text-white text-[10px]"></i>' : ''}
+                    </div>`;
+
+                const icon = L.divIcon({ className: 'custom-div-icon', html: markerHtml, iconSize: [radius*2, radius*2], iconAnchor: [radius, radius] });
+                const marker = L.marker(data.coords, { icon: icon }).addTo(layerGroup);
+                
+                marker.on('click', () => {
+                    showDistrictDetails(data);
+                    map.flyTo(data.coords, 9, { duration: 1 });
+                });
+            });
+
+            if (currentLayerType === 'movement') calculateMovementPlan();
+        }
+
+        function calculateMovementPlan() {
+            const surplusNodes = fullData.filter(d => d.status === 'Surplus').sort((a,b) => b.surplus - a.surplus);
+            const shortageNodes = fullData.filter(d => d.status === 'Shortage').sort((a,b) => a.surplus - b.surplus); 
+
+            shortageNodes.forEach(short => {
+                let bestSource = null;
+                let minDist = Infinity;
+                surplusNodes.forEach(surp => {
+                    if (surp.surplus <= 0) return; 
+                    const dist = Math.sqrt(Math.pow(short.coords[0]-surp.coords[0], 2) + Math.pow(short.coords[1]-surp.coords[1], 2));
+                    if (dist < minDist) { minDist = dist; bestSource = surp; }
+                });
+
+                if (bestSource) {
+                    const latlngs = [bestSource.coords, short.coords];
+                    L.polyline(latlngs, { color: '#8B5CF6', weight: 3, opacity: 0.8, className: 'transport-line' }).addTo(movementLayerGroup);
+                    L.marker(short.coords, {
+                        icon: L.divIcon({ html: '<i class="fas fa-caret-down text-purple-600 text-2xl"></i>', iconSize: [20, 20], iconAnchor: [10, 10] })
+                    }).addTo(movementLayerGroup);
+                    bestSource.surplus -= 1000; 
+                }
+            });
+        }
+
+        function updateLegend() {
+            const el = document.getElementById('legend-content');
+            let html = `<h4 class="text-[10px] font-bold text-gray-400 uppercase mb-2">${currentLayerType.replace(/^\w/, c => c.toUpperCase())} Legend</h4>`;
+            
+            if (currentLayerType === 'market' || currentLayerType === 'movement') {
+                html += `
+                    <div class="flex items-center gap-2 mb-1"><span class="w-3 h-3 rounded-full bg-red-500 border border-white"></span> <span class="text-xs text-gray-600">Shortage (High Price)</span></div>
+                    <div class="flex items-center gap-2 mb-1"><span class="w-3 h-3 rounded-full bg-green-500 border border-white"></span> <span class="text-xs text-gray-600">Surplus (Low Price)</span></div>
+                    <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-yellow-500 border border-white"></span> <span class="text-xs text-gray-600">Balanced</span></div>
+                `;
+                if(currentLayerType === 'movement') html += `<div class="mt-2 pt-2 border-t border-gray-200 flex items-center gap-2"><div class="w-8 h-1 bg-purple-500 border-b-2 border-dashed border-white"></div> <span class="text-xs text-gray-600">Transport Route</span></div>`;
+            } else if (currentLayerType === 'climate') {
+                html += `
+                    <div class="flex items-center gap-2 mb-1"><div class="w-4 h-4 rounded bg-blue-500 flex items-center justify-center text-white text-[8px]"><i class="fas fa-water"></i></div> <span class="text-xs text-gray-600">Flood Risk</span></div>
+                    <div class="flex items-center gap-2 mb-1"><div class="w-4 h-4 rounded bg-orange-500 flex items-center justify-center text-white text-[8px]"><i class="fas fa-sun"></i></div> <span class="text-xs text-gray-600">Drought Risk</span></div>
+                `;
+            } else if (currentLayerType === 'suitability') {
+                html += `
+                    <div class="flex items-center gap-2 mb-1"><span class="w-3 h-3 rounded-full bg-green-700"></span> <span class="text-xs text-gray-600">High Suitability</span></div>
+                    <div class="flex items-center gap-2 mb-1"><span class="w-3 h-3 rounded-full bg-yellow-500"></span> <span class="text-xs text-gray-600">Moderate</span></div>
+                    <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-red-600"></span> <span class="text-xs text-gray-600">Low Suitability</span></div>
+                `;
+            }
+            el.innerHTML = html;
+        }
+
+        function showDistrictDetails(data) {
+            currentSelectedDistrict = data; // Save reference for re-renders
+            const panel = document.getElementById('right-panel-content');
+            const recs = ["Maize", "Sorghum", "Groundnut"].map(c => `<span class="px-2 py-1 bg-green-50 text-green-700 rounded text-[10px] border border-green-100">${c}</span>`).join('');
+
+            // --- AI ANALYSIS GENERATION ---
+            const horizonLabels = {0: "current period", 1: "next month", 2: "two months out", 3: "three months out"};
+            const horizonText = horizonLabels[currentHorizon];
+            let aiText = "";
+
+            if (data.status === 'Surplus') {
+                aiText = `Gemini AI analysis indicates a robust surplus of <span class="font-bold text-green-600">${selectedCrop}</span> in <span class="font-bold text-gray-800">${data.name}</span> for the ${horizonText}. With production at ${(data.harvest/1000).toFixed(1)}k MT exceeding consumption, prices may dip. Recommendation: Activate storage protocols or plan redistribution to shortage zones.`;
+            } else if (data.status === 'Shortage') {
+                aiText = `Critical alert from Gemini AI: <span class="font-bold text-red-600">${selectedCrop}</span> stocks in <span class="font-bold text-gray-800">${data.name}</span> are critically low for the ${horizonText}. Demand outstrips supply by ${Math.abs(data.surplus).toLocaleString()} MT. Immediate import or inter-provincial transport required to stabilize the projected price hike of ${Math.floor(Math.random()*20+10)}%.`;
+            } else {
+                aiText = `Gemini AI detects a balanced <span class="font-bold text-orange-600">${selectedCrop}</span> market in <span class="font-bold text-gray-800">${data.name}</span> for the ${horizonText}. Supply meets local demand with minimal deviation. Monitor climate risks (${data.risk.score}/100) closely as minor disruptions could tip the balance.`;
+            }
+
+            const html = `
+                <div class="animate-fade-in-up">
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <span class="text-[10px] font-bold text-gray-400 uppercase">District Intelligence</span>
+                            <h2 class="text-2xl font-black text-gray-800 leading-tight">${data.name}</h2>
+                        </div>
+                        <div class="px-3 py-1 rounded-full text-xs font-bold uppercase ${data.status === 'Surplus' ? 'bg-green-100 text-green-700' : (data.status === 'Shortage' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700')}">
+                            ${data.status}
+                        </div>
+                    </div>
+
+                     <!-- GEMINI AI INSIGHTS BOX -->
+                    <div class="bg-gradient-to-br from-indigo-50 to-white p-4 rounded-xl border border-indigo-100 mb-4 shadow-sm relative overflow-hidden group">
+                        <div class="absolute top-0 right-0 w-16 h-16 bg-gradient-to-br from-indigo-200 to-transparent opacity-20 rounded-bl-full"></div>
+                        <div class="flex items-center gap-2 mb-2">
+                            <i class="fas fa-sparkles text-indigo-500 text-sm animate-pulse"></i>
+                            <h4 class="text-[11px] font-black text-indigo-800 uppercase tracking-wide">Gemini AI Analysis</h4>
+                        </div>
+                        <p class="text-xs text-gray-700 leading-relaxed font-medium typing-cursor">${aiText}</p>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3 mb-4">
+                        <div class="glass-card p-3 rounded-xl bg-blue-50/50 border-blue-100">
+                            <div class="text-[9px] font-bold text-blue-400 uppercase mb-1">Cultivated Area</div>
+                            <div class="text-xl font-bold text-gray-800">${data.cultivatedArea.toLocaleString()} <span class="text-xs font-normal text-gray-500">Ha</span></div>
+                        </div>
+                        <div class="glass-card p-3 rounded-xl bg-orange-50/50 border-orange-100">
+                            <div class="text-[9px] font-bold text-orange-400 uppercase mb-1">Total Harvest</div>
+                            <div class="text-xl font-bold text-gray-800">${(data.harvest/1000).toFixed(1)}k <span class="text-xs font-normal text-gray-500">MT</span></div>
+                        </div>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-4">
+                        <h4 class="text-[10px] font-bold text-gray-400 uppercase mb-3">Supply vs. Demand</h4>
+                        <div class="relative h-2 bg-gray-100 rounded-full overflow-hidden mb-1">
+                            <div class="absolute left-0 top-0 h-full bg-blue-500" style="width: ${(data.consumption/data.harvest)*100}%"></div>
+                        </div>
+                        <div class="flex justify-between text-[10px] text-gray-500 font-medium">
+                            <span>Consumption: ${data.consumption.toLocaleString()} MT</span>
+                            <span>Supply: ${data.harvest.toLocaleString()} MT</span>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3 mb-4">
+                        <div class="bg-white p-3 rounded-xl border border-gray-100">
+                            <div class="text-[9px] font-bold text-gray-400 uppercase">Risk Score</div>
+                            <div class="flex items-end gap-2 mt-1">
+                                <span class="text-2xl font-bold ${data.risk.score > 70 ? 'text-red-500' : 'text-green-500'}">${data.risk.score}</span>
+                                <span class="text-[10px] text-gray-400 mb-1">/ 100</span>
+                            </div>
+                        </div>
+                        <div class="bg-white p-3 rounded-xl border border-gray-100">
+                            <div class="text-[9px] font-bold text-gray-400 uppercase">Market Price</div>
+                            <div class="flex items-end gap-2 mt-1">
+                                <span class="text-2xl font-bold text-gray-800">LKR ${data.price.current}</span>
+                                <i class="fas fa-arrow-${data.price.trend} text-${data.price.trend === 'up' ? 'red' : 'green'}-500 mb-1.5 text-xs"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl border border-gray-100 mb-4">
+                        <h4 class="text-[10px] font-bold text-gray-400 uppercase mb-3">Land Suitability Analysis</h4>
+                        <div class="space-y-2 text-xs">
+                            <div class="flex justify-between border-b border-gray-50 pb-1"><span class="text-gray-500">Soil Type</span><span class="font-semibold text-gray-700">${data.suitability.soil}</span></div>
+                            <div class="flex justify-between border-b border-gray-50 pb-1"><span class="text-gray-500">Water Access</span><span class="font-semibold text-gray-700">${data.suitability.water}% Coverage</span></div>
+                            <div class="flex justify-between border-b border-gray-50 pb-1"><span class="text-gray-500">Elevation</span><span class="font-semibold text-gray-700">${data.suitability.elevation}m</span></div>
+                        </div>
+                        <div class="mt-3"><span class="text-[9px] text-gray-400 uppercase block mb-1">AI Recommended Crops</span><div class="flex flex-wrap gap-1">${recs}</div></div>
+                    </div>
+                </div>
+            `;
+            panel.innerHTML = html;
+        }
+
+        // --- CROP SELECTOR LOGIC (FIXED) ---
+        function toggleCropDropdown() {
+            document.getElementById('crop-dropdown-menu').classList.toggle('hidden');
+        }
+
+        function renderTopCropDropdown() {
+            const container = document.getElementById('crop-dropdown-menu');
+            container.innerHTML = cropTypes.map(c => `
+                <div onclick="setCrop('${c}')" class="p-2 rounded-lg cursor-pointer hover:bg-gray-100 transition flex items-center justify-between group">
+                    <span class="text-xs font-bold ${c===selectedCrop ? 'text-orange-500' : 'text-gray-700'}">${c}</span>
+                    ${c===selectedCrop ? '<i class="fas fa-check text-orange-500 text-[10px]"></i>' : ''}
+                </div>
+            `).join('');
+        }
+
+        function renderCropList() {
+            // Sidebar List
+            const container = document.getElementById('crop-list');
+            container.innerHTML = cropTypes.map(c => `
+                <div onclick="setCrop('${c}')" class="crop-item p-2 rounded-lg cursor-pointer hover:bg-white flex items-center justify-between group transition ${c===selectedCrop ? 'bg-white shadow-sm' : ''}">
+                    <span class="text-xs font-medium text-gray-700">${c}</span>
+                    <i class="fas fa-chevron-right text-[10px] text-gray-300 group-hover:text-orange-400 opacity-0 group-hover:opacity-100 transition"></i>
+                </div>
+            `).join('');
+        }
+
+        function setCrop(c) {
+            selectedCrop = c;
+            document.getElementById('map-crop-label').innerText = c;
+            document.getElementById('crop-dropdown-menu').classList.add('hidden');
+            renderCropList();
+            renderTopCropDropdown();
+            // Warm forecast cache for new crop + current horizon
+            if (window.warmForecastCache) window.warmForecastCache(c, currentHorizon);
+            refreshMapData();
+        }
+
+        function addAlert(msg) {
+            const container = document.getElementById('alerts-container');
+            const el = document.createElement('div');
+            el.className = 'alert-toast glass-panel p-3 rounded-xl border-l-4 border-red-500 flex items-start gap-3 shadow-lg max-w-xs pointer-events-auto';
+            el.innerHTML = `<i class="fas fa-exclamation-circle text-red-500 mt-0.5"></i><div><h5 class="text-xs font-bold text-gray-800">Alert</h5><p class="text-[10px] text-gray-600 leading-tight">${msg}</p></div><button onclick="this.parentElement.remove()" class="text-gray-400 hover:text-gray-600 ml-auto"><i class="fas fa-times"></i></button>`;
+            container.appendChild(el);
+            document.getElementById('nav-alerts-list').innerHTML += `<div class="p-2 border-b border-gray-100 last:border-0 text-xs text-gray-600">${msg}</div>`;
+            setTimeout(() => { if(el.parentElement) el.remove(); }, 8000);
+        }
+
+        function hexToRgb(hex) {
+            var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? `${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}` : null;
+        }
+
+        document.addEventListener('DOMContentLoaded', init);
+
+    </script>
+    <!-- AUTH MODAL -->
+    <div id="auth-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+        <div class="glass bg-white/95 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden transform transition-all scale-95 opacity-0" id="auth-modal-content">
+            <div class="bg-gray-50 px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+                <h3 class="font-bold text-gray-800 text-lg" id="modal-title">Login to AgriFlow</h3>
+                <button onclick="closeLoginModal()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times"></i></button>
+            </div>
+            <div id="step-role" class="p-6">
+                <p class="text-center text-gray-500 mb-6 text-sm">Please select your account type.</p>
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div onclick="selectRole('farmer')" class="cursor-pointer border-2 border-transparent hover:border-orange-500 bg-orange-50 rounded-xl p-6 text-center transition group"><div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition"><i class="fas fa-tractor text-2xl text-orange-500"></i></div><h4 class="font-bold text-gray-800">Farmer</h4><p class="text-[10px] text-gray-500 mt-1">Full Access</p></div>
+                    <div onclick="selectRole('customer')" class="cursor-pointer border-2 border-transparent hover:border-blue-500 bg-blue-50 rounded-xl p-6 text-center transition group"><div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition"><i class="fas fa-shopping-basket text-2xl text-blue-500"></i></div><h4 class="font-bold text-gray-800">Customer</h4><p class="text-[10px] text-gray-500 mt-1">View & Buy</p></div>
+                </div>
+                <div onclick="selectRole('admin')" class="cursor-pointer border border-gray-200 hover:border-red-400 bg-gray-50 rounded-xl p-3 text-center transition flex items-center justify-center gap-3"><i class="fas fa-user-shield text-gray-500"></i> <span class="text-sm font-bold text-gray-600">Official / Admin Login</span></div>
+            </div>
+            <div id="step-farmer" class="p-6 hidden"><div class="space-y-4"><div><label class="text-xs font-bold text-gray-500 uppercase">Full Name</label><input type="text" id="f-name" class="w-full p-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500" placeholder="e.g. Kamal Perera"></div><div><label class="text-xs font-bold text-gray-500 uppercase">NIC Number</label><input type="text" class="w-full p-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500"></div><button onclick="handleLogin('farmer')" class="w-full bg-orange-500 text-white font-bold py-3 rounded-lg hover:bg-orange-600 transition shadow-lg">Register & Login</button><button onclick="resetModal()" class="w-full text-xs text-gray-400 hover:text-gray-600 mt-2">Back</button></div></div>
+            <div id="step-customer" class="p-6 hidden"><div class="space-y-3"><div><label class="text-xs font-bold text-gray-500 uppercase">Full Name</label><input type="text" id="c-name" class="w-full p-2.5 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"></div><div><label class="text-xs font-bold text-gray-500 uppercase">Province</label><select id="c-province" class="w-full p-2.5 rounded-lg border border-gray-200" onchange="populateDistricts()"></select></div><button onclick="handleLogin('customer')" class="w-full bg-blue-500 text-white font-bold py-3 rounded-lg hover:bg-blue-600 transition shadow-lg mt-2">Register & Login</button><button onclick="resetModal()" class="w-full text-xs text-gray-400 hover:text-gray-600 mt-2">Back</button></div></div>
+            <div id="step-admin" class="p-6 hidden"><div class="bg-red-50 border border-red-100 p-3 rounded-lg mb-4 text-xs text-red-600 flex items-center gap-2"><i class="fas fa-lock"></i> Restricted Access Area</div><div class="space-y-4"><div><label class="text-xs font-bold text-gray-500 uppercase">Username</label><input type="text" id="a-user" class="w-full p-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-red-500"></div><div><label class="text-xs font-bold text-gray-500 uppercase">Password</label><input type="password" id="a-pass" class="w-full p-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-red-500"></div><button onclick="handleLogin('admin')" class="w-full bg-gray-800 text-white font-bold py-3 rounded-lg hover:bg-gray-900 transition shadow-lg">Authenticate</button><button onclick="resetModal()" class="w-full text-xs text-gray-400 hover:text-gray-600 mt-2">Back</button></div></div>
+        </div>
+    </div>
+</body>
+</html>
