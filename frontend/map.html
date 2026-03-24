@@ -9,6 +9,9 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- AgriFlow shared data service + API client -->
+    <script src="js/agri-db.js"></script>
+    <script src="js/api-client.js"></script>
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
     <!-- FontAwesome -->
@@ -170,7 +173,7 @@
                         <div id="nav-alerts-list" class="space-y-2 max-h-60 overflow-y-auto custom-scrollbar"></div>
                     </div>
                 </div>
-                <button class="w-9 h-9 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center hover:bg-gray-200 transition">
+                <button id="auth-btn" onclick="openLoginModal()" class="w-9 h-9 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center hover:bg-gray-200 transition">
                     <i class="fas fa-user"></i>
                 </button>
             </div>
@@ -280,8 +283,8 @@
 
             <div class="absolute top-4 right-4 z-[1000] flex gap-2">
                 <div class="bg-white/80 backdrop-blur-md px-3 py-1.5 rounded-lg border border-white shadow-sm flex items-center gap-2">
-                    <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                    <span class="text-[10px] font-bold text-gray-600">Live Updates</span>
+                    <span data-backend-status=""
+                          class="text-[10px] font-bold text-gray-500">Connecting...</span>
                 </div>
             </div>
 
@@ -314,8 +317,38 @@
 
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- AgriFlow map upgrades: real data + GeoJSON choropleth -->
+    <script src="js/map-patch.js"></script>
 
     <script>
+        // --- AUTH ---
+        let currentUser = null;
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedUser = localStorage.getItem('agriFlowUser');
+            if (savedUser) { currentUser = JSON.parse(savedUser); updateAuthUI(); }
+        });
+        function updateAuthUI() {
+            const btn = document.getElementById('auth-btn');
+            if (currentUser) {
+                let icon = 'fa-user'; let color = 'text-blue-600'; let bg = 'bg-blue-50';
+                if (currentUser.role === 'farmer') { icon = 'fa-tractor'; color = 'text-orange-600'; bg = 'bg-orange-50'; }
+                if (currentUser.role === 'admin') { icon = 'fa-user-shield'; color = 'text-red-600'; bg = 'bg-red-50'; }
+                btn.innerHTML = `<i class="fas ${icon} ${color}"></i> <span class="${color}">${currentUser.name}</span>`;
+                btn.className = `px-5 py-2 rounded-full ${bg} text-xs font-bold uppercase tracking-wide border border-gray-200 flex items-center gap-2`;
+                btn.onclick = logout;
+            } else {
+                btn.innerHTML = `<i class="fas fa-user-circle text-lg"></i> <span>Login</span>`;
+                btn.className = `px-5 py-2 rounded-full bg-white/80 text-blue-600 text-xs font-bold uppercase tracking-wide hover:bg-white hover:shadow-md transition border border-blue-100 flex items-center gap-2`;
+                btn.onclick = () => openLoginModal();
+            }
+        }
+        function logout() { if(confirm("Are you sure you want to logout?")) { localStorage.removeItem('agriFlowUser'); currentUser = null; updateAuthUI(); window.location.reload(); } }
+        function openLoginModal(targetRole = null) { const modal = document.getElementById('auth-modal'); const content = document.getElementById('auth-modal-content'); modal.classList.remove('hidden'); modal.classList.add('flex'); setTimeout(() => { content.classList.remove('scale-95', 'opacity-0'); content.classList.add('scale-100', 'opacity-100'); }, 10); if (targetRole) { selectRole(targetRole); } else { resetModal(); } }
+        function closeLoginModal() { const modal = document.getElementById('auth-modal'); const content = document.getElementById('auth-modal-content'); content.classList.remove('scale-100', 'opacity-100'); content.classList.add('scale-95', 'opacity-0'); setTimeout(() => { modal.classList.add('hidden'); modal.classList.remove('flex'); }, 300); }
+        function resetModal() { document.getElementById('step-role').classList.remove('hidden'); document.getElementById('step-farmer').classList.add('hidden'); document.getElementById('step-customer').classList.add('hidden'); document.getElementById('step-admin').classList.add('hidden'); document.getElementById('modal-title').innerText = "Login to AgriFlow"; }
+        function selectRole(role) { document.getElementById('step-role').classList.add('hidden'); if (role === 'farmer') { document.getElementById('step-farmer').classList.remove('hidden'); document.getElementById('modal-title').innerText = "Farmer Registration"; } else if (role === 'customer') { document.getElementById('step-customer').classList.remove('hidden'); document.getElementById('modal-title').innerText = "Customer Registration"; } else if (role === 'admin') { document.getElementById('step-admin').classList.remove('hidden'); document.getElementById('modal-title').innerText = "Admin Access"; } }
+        function handleLogin(role) { let name = ""; if (role === 'admin') { const u = document.getElementById('a-user').value; const p = document.getElementById('a-pass').value; if (u === 'admin' && p === 'admin123') { name = "Administrator"; } else { alert("Invalid Credentials!"); return; } } else { const nameInput = role === 'farmer' ? document.getElementById('f-name') : document.getElementById('c-name'); name = nameInput.value || (role === 'farmer' ? "Kamal Perera" : "Nimali Silva"); } currentUser = { role: role, name: name }; localStorage.setItem('agriFlowUser', JSON.stringify(currentUser)); if (window.API) { const creds = role === 'admin' ? { username: document.getElementById('a-user')?.value, password: document.getElementById('a-pass')?.value } : { role, name }; API.auth.login(creds); } else if (window.AgriDB) { AgriDB.saveUser(currentUser); } updateAuthUI(); closeLoginModal(); if(role === 'admin') { window.location.href = 'admin.html'; } else { alert(`Logged in as ${role.toUpperCase()}`); } }
+
         // --- CONFIG & STATE ---
         const mapConfig = { center: [7.8731, 80.7718], zoom: 7.5 };
         let map;
@@ -585,7 +618,9 @@
             // UI Update
             document.querySelectorAll('.forecast-btn').forEach(b => b.classList.remove('active'));
             document.getElementById(`fc-${months}`).classList.add('active');
-            
+            // Pre-warm the API forecast cache for this horizon so generateDistrictData
+            // can serve real data immediately on the next renderLayer call.
+            if (window.warmForecastCache) window.warmForecastCache(selectedCrop, months);
             // Logic Update
             refreshMapData();
             addAlert(`Forecast horizon updated to: ${months === 0 ? 'Current' : '+' + months + ' Months'}`);
@@ -816,13 +851,11 @@
         function setCrop(c) {
             selectedCrop = c;
             document.getElementById('map-crop-label').innerText = c;
-            // Hide Dropdown
             document.getElementById('crop-dropdown-menu').classList.add('hidden');
-            
-            // Re-render lists to update active state styling
             renderCropList();
             renderTopCropDropdown();
-            
+            // Warm forecast cache for new crop + current horizon
+            if (window.warmForecastCache) window.warmForecastCache(c, currentHorizon);
             refreshMapData();
         }
 
@@ -844,5 +877,25 @@
         document.addEventListener('DOMContentLoaded', init);
 
     </script>
+    <!-- AUTH MODAL -->
+    <div id="auth-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+        <div class="glass bg-white/95 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden transform transition-all scale-95 opacity-0" id="auth-modal-content">
+            <div class="bg-gray-50 px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+                <h3 class="font-bold text-gray-800 text-lg" id="modal-title">Login to AgriFlow</h3>
+                <button onclick="closeLoginModal()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times"></i></button>
+            </div>
+            <div id="step-role" class="p-6">
+                <p class="text-center text-gray-500 mb-6 text-sm">Please select your account type.</p>
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div onclick="selectRole('farmer')" class="cursor-pointer border-2 border-transparent hover:border-orange-500 bg-orange-50 rounded-xl p-6 text-center transition group"><div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition"><i class="fas fa-tractor text-2xl text-orange-500"></i></div><h4 class="font-bold text-gray-800">Farmer</h4><p class="text-[10px] text-gray-500 mt-1">Full Access</p></div>
+                    <div onclick="selectRole('customer')" class="cursor-pointer border-2 border-transparent hover:border-blue-500 bg-blue-50 rounded-xl p-6 text-center transition group"><div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition"><i class="fas fa-shopping-basket text-2xl text-blue-500"></i></div><h4 class="font-bold text-gray-800">Customer</h4><p class="text-[10px] text-gray-500 mt-1">View & Buy</p></div>
+                </div>
+                <div onclick="selectRole('admin')" class="cursor-pointer border border-gray-200 hover:border-red-400 bg-gray-50 rounded-xl p-3 text-center transition flex items-center justify-center gap-3"><i class="fas fa-user-shield text-gray-500"></i> <span class="text-sm font-bold text-gray-600">Official / Admin Login</span></div>
+            </div>
+            <div id="step-farmer" class="p-6 hidden"><div class="space-y-4"><div><label class="text-xs font-bold text-gray-500 uppercase">Full Name</label><input type="text" id="f-name" class="w-full p-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500" placeholder="e.g. Kamal Perera"></div><div><label class="text-xs font-bold text-gray-500 uppercase">NIC Number</label><input type="text" class="w-full p-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500"></div><button onclick="handleLogin('farmer')" class="w-full bg-orange-500 text-white font-bold py-3 rounded-lg hover:bg-orange-600 transition shadow-lg">Register & Login</button><button onclick="resetModal()" class="w-full text-xs text-gray-400 hover:text-gray-600 mt-2">Back</button></div></div>
+            <div id="step-customer" class="p-6 hidden"><div class="space-y-3"><div><label class="text-xs font-bold text-gray-500 uppercase">Full Name</label><input type="text" id="c-name" class="w-full p-2.5 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"></div><div><label class="text-xs font-bold text-gray-500 uppercase">Province</label><select id="c-province" class="w-full p-2.5 rounded-lg border border-gray-200" onchange="populateDistricts()"></select></div><button onclick="handleLogin('customer')" class="w-full bg-blue-500 text-white font-bold py-3 rounded-lg hover:bg-blue-600 transition shadow-lg mt-2">Register & Login</button><button onclick="resetModal()" class="w-full text-xs text-gray-400 hover:text-gray-600 mt-2">Back</button></div></div>
+            <div id="step-admin" class="p-6 hidden"><div class="bg-red-50 border border-red-100 p-3 rounded-lg mb-4 text-xs text-red-600 flex items-center gap-2"><i class="fas fa-lock"></i> Restricted Access Area</div><div class="space-y-4"><div><label class="text-xs font-bold text-gray-500 uppercase">Username</label><input type="text" id="a-user" class="w-full p-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-red-500"></div><div><label class="text-xs font-bold text-gray-500 uppercase">Password</label><input type="password" id="a-pass" class="w-full p-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-red-500"></div><button onclick="handleLogin('admin')" class="w-full bg-gray-800 text-white font-bold py-3 rounded-lg hover:bg-gray-900 transition shadow-lg">Authenticate</button><button onclick="resetModal()" class="w-full text-xs text-gray-400 hover:text-gray-600 mt-2">Back</button></div></div>
+        </div>
+    </div>
 </body>
 </html>

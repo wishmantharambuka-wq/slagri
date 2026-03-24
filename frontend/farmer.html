@@ -7,6 +7,9 @@
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- AgriFlow shared data service + API client -->
+    <script src="js/agri-db.js"></script>
+    <script src="js/api-client.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
@@ -58,26 +61,40 @@
     <!-- NAVIGATION -->
     <nav class="glass-panel sticky top-0 z-50 px-6 py-3 shadow-sm flex-shrink-0">
         <div class="max-w-full mx-auto flex justify-between items-center">
-            <a href="#" class="flex items-center gap-2 cursor-pointer group">
-                <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center text-white shadow-lg">
-                    <i class="fas fa-leaf"></i>
+            <a href="index.html" class="flex items-center gap-2 cursor-pointer group">
+                <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-green-500 to-green-700 flex items-center justify-center text-white shadow-lg transform group-hover:rotate-12 transition">
+                    <i class="fas fa-seedling"></i>
                 </div>
                 <div class="flex flex-col">
-                    <span class="text-lg font-bold tracking-tight text-gray-900 leading-none">Agri<span class="text-orange-500">Flow</span></span>
+                    <span class="text-lg font-extrabold tracking-tight text-gray-900 leading-none">Agri<span class="text-orange-500">Flow</span></span>
                     <span class="text-[9px] text-gray-500 font-bold tracking-wider uppercase">National Intelligence</span>
                 </div>
             </a>
             
             <div class="hidden md:flex bg-gray-100/50 p-1 rounded-full backdrop-blur-md border border-white/50">
-                <a href="#" class="nav-link px-4 py-1.5 rounded-full text-xs font-medium text-gray-500 hover:bg-white hover:text-orange-500 transition">Dashboard</a>
-                <a href="#" class="nav-link px-4 py-1.5 rounded-full text-xs font-medium text-gray-500 hover:bg-white hover:text-orange-500 transition">Map & Intelligence</a>
-                <a href="#" class="nav-link px-4 py-1.5 rounded-full text-xs font-medium text-gray-500 hover:bg-white hover:text-orange-500 transition">Marketplace</a>
-                <a href="#" class="nav-link px-4 py-1.5 rounded-full text-xs font-bold bg-white text-orange-600 shadow-sm">Farmer Zone</a>
+                <a href="index.html" class="nav-link px-4 py-1.5 rounded-full text-xs font-medium text-gray-500 hover:bg-white hover:text-orange-500 transition">Dashboard</a>
+                <a href="map.html" class="nav-link px-4 py-1.5 rounded-full text-xs font-medium text-gray-500 hover:bg-white hover:text-orange-500 transition">Map & Intelligence</a>
+                <a href="marketplace.html" class="nav-link px-4 py-1.5 rounded-full text-xs font-medium text-gray-500 hover:bg-white hover:text-orange-500 transition">Marketplace</a>
+                <a href="farmer.html" class="nav-link px-4 py-1.5 rounded-full text-xs font-bold bg-white text-orange-600 shadow-sm">Farmer Zone</a>
             </div>
 
-            <button id="auth-btn" onclick="openLoginModal()" class="px-5 py-2 rounded-full bg-white text-blue-600 text-xs font-bold uppercase tracking-wide border border-blue-100 shadow-sm hover:shadow-md transition flex items-center gap-2">
-                <i class="fas fa-user-circle text-lg"></i> <span>Login</span>
-            </button>
+            <div class="flex items-center gap-3">
+                <span data-backend-status="" class="text-[9px] text-gray-400 hidden md:inline">Connecting...</span>
+                <div class="relative group">
+                    <button class="w-9 h-9 rounded-full bg-red-50 text-red-500 flex items-center justify-center relative hover:bg-red-100 transition">
+                        <i class="fas fa-bell"></i>
+                        <span class="absolute top-0 right-0 w-3 h-3 bg-red-600 border-2 border-white rounded-full animate-pulse"></span>
+                    </button>
+                    <!-- Alerts Dropdown -->
+                    <div class="hidden group-hover:block absolute right-0 top-full mt-2 w-72 bg-white/95 backdrop-blur-xl rounded-xl shadow-2xl border border-gray-100 p-3 z-50">
+                        <h4 class="text-[10px] font-bold text-gray-400 uppercase mb-2">Active Alerts</h4>
+                        <div id="nav-alerts-list" class="space-y-2 max-h-60 overflow-y-auto custom-scrollbar"></div>
+                    </div>
+                </div>
+                <button id="auth-btn" onclick="openLoginModal()" class="w-9 h-9 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center hover:bg-gray-200 transition">
+                    <i class="fas fa-user"></i>
+                </button>
+            </div>
         </div>
     </nav>
 
@@ -808,7 +825,7 @@
         function closeLoginModal() { document.getElementById('auth-modal-content').classList.remove('scale-100', 'opacity-100'); document.getElementById('auth-modal-content').classList.add('scale-95', 'opacity-0'); setTimeout(() => { document.getElementById('auth-modal').classList.add('hidden'); document.getElementById('auth-modal').classList.remove('flex'); }, 300); }
         function resetModal() { document.getElementById('step-role').classList.remove('hidden'); ['step-farmer', 'step-customer', 'step-admin'].forEach(id => document.getElementById(id).classList.add('hidden')); document.getElementById('modal-title').innerText = "Login to AgriFlow"; }
         function selectRole(role) { document.getElementById('step-role').classList.add('hidden'); if(role==='farmer'){document.getElementById('step-farmer').classList.remove('hidden'); document.getElementById('modal-title').innerText = "Farmer Login";} if(role==='customer'){document.getElementById('step-customer').classList.remove('hidden'); document.getElementById('modal-title').innerText = "Customer Login";} if(role==='admin'){document.getElementById('step-admin').classList.remove('hidden'); document.getElementById('modal-title').innerText = "Admin Access";} }
-        function handleLogin(role) { let name = "User"; if(role==='admin'){ if(document.getElementById('a-user').value === 'admin' && document.getElementById('a-pass').value === 'admin123') name="Administrator"; else {showToast("Invalid Credentials!", "error"); return;} } else name = (role==='farmer'? document.getElementById('f-name').value : document.getElementById('c-name').value) || "Registered User"; currentUser = {role, name}; localStorage.setItem('agriFlowUser', JSON.stringify(currentUser)); updateAuthUI(); closeLoginModal(); showToast(`Welcome, ${name}!`, "success"); }
+        function handleLogin(role) { let name = "User"; if(role==='admin'){ if(document.getElementById('a-user').value === 'admin' && document.getElementById('a-pass').value === 'admin123') name="Administrator"; else {showToast("Invalid Credentials!", "error"); return;} } else name = (role==='farmer'? document.getElementById('f-name').value : document.getElementById('c-name').value) || "Registered User"; currentUser = {role, name}; localStorage.setItem('agriFlowUser', JSON.stringify(currentUser)); updateAuthUI(); closeLoginModal(); if(role === 'admin') { window.location.href = 'admin.html'; } else { showToast(`Welcome, ${name}!`, "success"); } }
 
         // --- PROFIT CALC (TOOL 1) ---
         const cropDetails = { "Carrot": { duration: 90, yield: 8000 }, "Leeks": { duration: 120, yield: 6000 }, "Cabbage": { duration: 80, yield: 10000 }, "Beetroot": { duration: 75, yield: 7000 }, "Potato": { duration: 90, yield: 9000 }, "Beans": { duration: 60, yield: 4000 }, "Tomato": { duration: 75, yield: 8000 }, "Pumpkin": { duration: 100, yield: 6000 }, "Banana": { duration: 300, yield: 12000 }, "Papaya": { duration: 240, yield: 15000 }, "Mango": { duration: 365, yield: 5000 }, "Pineapple": { duration: 365, yield: 10000 }, "Pepper": { duration: 200, yield: 1000 }, "Cinnamon": { duration: 365, yield: 800 }, "Tea": { duration: 30, yield: 500 } };
@@ -1047,5 +1064,7 @@
 
         function closeCropModal() { document.getElementById('crop-modal-content').classList.add('scale-95','opacity-0'); setTimeout(()=>{document.getElementById('crop-modal').classList.add('hidden'); document.getElementById('crop-modal').classList.remove('flex');},300); }
     </script>
+    <!-- AgriFlow farmer form wiring + submission history + demo data -->
+    <script src="js/farmer-patch.js"></script>
 </body>
 </html>
