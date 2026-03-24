@@ -4,7 +4,7 @@
 # to serve the static frontend.
 
 [build]
-  publish = "."          # serve from the root — all .html files
+  publish = "frontend"          # serve from the root — all .html files
 
 # Redirect / to the dashboard
 [[redirects]]
