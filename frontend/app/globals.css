@@ -1,0 +1,115 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
+
+@layer base {
+  body {
+    @apply bg-gray-100 font-outfit text-gray-800;
+    background-image:
+      radial-gradient(at 0% 0%, rgba(16, 185, 129, 0.08) 0px, transparent 50%),
+      radial-gradient(at 100% 0%, rgba(249, 115, 22, 0.08) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, rgba(59, 130, 246, 0.08) 0px, transparent 50%);
+    background-attachment: fixed;
+    background-size: cover;
+  }
+}
+
+@layer components {
+  /* Glassmorphism panel */
+  .glass-panel {
+    @apply bg-white/65 backdrop-blur-xl border border-white/40 shadow-[0_4px_20px_rgba(0,0,0,0.03)];
+  }
+
+  /* Glassmorphism card with hover */
+  .glass-card {
+    @apply bg-white/60 backdrop-blur-sm border border-white/50 transition-all duration-300;
+  }
+
+  .glass-card:hover {
+    @apply bg-white/95 shadow-[0_8px_25px_rgba(0,0,0,0.05)] border-white/80;
+  }
+
+  /* Custom scrollbar */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 10px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+  }
+}
+
+@layer utilities {
+  /* Marker pulse animation for market/shortage markers */
+  .marker-pulse {
+    animation: markerPulse 2s infinite;
+  }
+
+  @keyframes markerPulse {
+    0% {
+      box-shadow: 0 0 0 0 rgba(var(--rgb), 0.7);
+    }
+    70% {
+      box-shadow: 0 0 0 10px rgba(var(--rgb), 0);
+    }
+    100% {
+      box-shadow: 0 0 0 0 rgba(var(--rgb), 0);
+    }
+  }
+
+  /* Transport line dash animation */
+  .transport-line {
+    stroke-dasharray: 10, 10;
+    animation: dash 30s linear infinite;
+  }
+
+  @keyframes dash {
+    to {
+      stroke-dashoffset: -1000;
+    }
+  }
+}
+
+/* Leaflet overrides for cleaner look */
+.leaflet-control-attribution {
+  display: none !important;
+}
+
+.leaflet-control-zoom a {
+  @apply bg-white/80 backdrop-blur-sm border-white/50 text-gray-700;
+}
+
+.leaflet-control-zoom a:hover {
+  @apply bg-white;
+}
+
+/* Custom popup styling */
+.custom-popup .leaflet-popup-content-wrapper {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  padding: 0;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  border: 1px solid white;
+}
+
+.custom-popup .leaflet-popup-content {
+  margin: 0;
+  width: 300px !important;
+}
+
+.custom-popup .leaflet-popup-tip {
+  background: rgba(255, 255, 255, 0.95);
+}
